@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { LeagueSettings, Team, Match } from '../services/firebase';
-import { Settings, Users, ArrowRight, Play, RefreshCw, Check, X, ShieldAlert, Layers } from 'lucide-react';
+import { Settings, Users, ArrowRight, Play, RefreshCw, Check, X, ShieldAlert, Layers, Trash2 } from 'lucide-react';
 
 interface AdminPanelProps {
   league: LeagueSettings | null;
@@ -13,6 +13,7 @@ interface AdminPanelProps {
   onStartLeague: () => Promise<void>;
   onSelectActiveLeague: (id: string | null) => Promise<void>;
   onReset: () => Promise<void>;
+  onDeleteLeague: (id: string) => Promise<void>;
   onUpdateScore: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
 }
 
@@ -27,6 +28,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onStartLeague,
   onSelectActiveLeague,
   onReset,
+  onDeleteLeague,
   onUpdateScore
 }) => {
   const [leagueName, setLeagueName] = useState('');
@@ -188,14 +190,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </span>
                     </div>
 
-                    {!isActive && (
+                    <div className="flex items-center gap-2 w-full sm:w-auto self-stretch sm:self-auto justify-end">
+                      {!isActive && (
+                        <button
+                          onClick={() => onSelectActiveLeague(l.id)}
+                          className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-slate-100 rounded-lg text-xs font-semibold border border-slate-700 transition-colors"
+                        >
+                          Activate
+                        </button>
+                      )}
                       <button
-                        onClick={() => onSelectActiveLeague(l.id)}
-                        className="w-full sm:w-auto px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-slate-100 rounded-lg text-xs font-semibold border border-slate-700 transition-colors"
+                        onClick={() => onDeleteLeague(l.id)}
+                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-450 rounded-lg border border-rose-500/20 transition-colors flex-shrink-0"
+                        title="Delete Tournament"
                       >
-                        Activate
+                        <Trash2 className="w-4 h-4" />
                       </button>
-                    )}
+                    </div>
                   </div>
                 );
               })
@@ -368,10 +379,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div className="flex justify-between items-start gap-4">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span 
-                          className="w-3.5 h-3.5 rounded-full border border-slate-950 flex-shrink-0"
-                          style={{ backgroundColor: team.color }}
-                        />
+                        {team.flagCode ? (
+                          <img
+                            src={`https://flagcdn.com/w40/${team.flagCode.toLowerCase()}.png`}
+                            className="w-5 h-3.5 object-cover rounded-sm shadow-sm flex-shrink-0 border border-slate-900/30"
+                            alt={`${team.name} flag`}
+                          />
+                        ) : (
+                          <span 
+                            className="w-3.5 h-3.5 rounded-full border border-slate-950 flex-shrink-0"
+                            style={{ backgroundColor: team.color }}
+                          />
+                        )}
                         <h3 className="font-bold text-slate-200 truncate text-base">{team.name}</h3>
                       </div>
                       <p className="text-xs text-slate-400">Captain: {team.captainEmail}</p>
@@ -430,10 +449,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-350">
                         {team.players.map((p, idx) => (
                           <div key={idx} className="flex items-center gap-1.5 bg-slate-950/30 p-1.5 rounded border border-slate-900">
-                            <span className="text-slate-500 font-mono font-bold">#{p.number}</span>
                             <div className="truncate flex-1 min-w-0">
                               <span className="font-semibold text-slate-200">{p.name}</span>
-                              <span className="text-[9px] text-slate-500 block uppercase font-bold">{p.position}</span>
                             </div>
                           </div>
                         ))}
@@ -484,7 +501,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                         <div className="flex items-center justify-between gap-3 text-sm font-semibold">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="w-2.5 h-2.5 rounded-full border border-slate-950" style={{ backgroundColor: homeTeam?.color || '#475569' }} />
+                            {homeTeam?.flagCode ? (
+                              <img
+                                src={`https://flagcdn.com/w40/${homeTeam.flagCode.toLowerCase()}.png`}
+                                className="w-5 h-3.5 object-cover rounded-sm shadow-sm flex-shrink-0 border border-slate-900/30"
+                                alt={`${homeName} flag`}
+                              />
+                            ) : (
+                              <span className="w-2.5 h-2.5 rounded-full border border-slate-950 flex-shrink-0" style={{ backgroundColor: homeTeam?.color || '#475569' }} />
+                            )}
                             <span className="truncate text-slate-200">{homeName}</span>
                           </div>
 
@@ -496,7 +521,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                           <div className="flex items-center gap-2 flex-1 min-w-0 justify-end text-right">
                             <span className="truncate text-slate-200">{awayName}</span>
-                            <span className="w-2.5 h-2.5 rounded-full border border-slate-955" style={{ backgroundColor: awayTeam?.color || '#475569' }} />
+                            {awayTeam?.flagCode ? (
+                              <img
+                                src={`https://flagcdn.com/w40/${awayTeam.flagCode.toLowerCase()}.png`}
+                                className="w-5 h-3.5 object-cover rounded-sm shadow-sm flex-shrink-0 border border-slate-900/30"
+                                alt={`${awayName} flag`}
+                              />
+                            ) : (
+                              <span className="w-2.5 h-2.5 rounded-full border border-slate-955 flex-shrink-0" style={{ backgroundColor: awayTeam?.color || '#475569' }} />
+                            )}
                           </div>
                         </div>
 

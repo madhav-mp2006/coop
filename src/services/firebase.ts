@@ -671,6 +671,68 @@ export const resetTournament = async (leagueId: string) => {
   );
 };
 
+// Delete a tournament completely from the database
+export const deleteLeague = async (leagueId: string) => {
+  return runDbOperation(
+    async () => {
+      // 1. Delete league document from Firestore
+      await deleteDoc(doc(db!, 'leagues', leagueId));
+      
+      // 2. Delete fixtures document
+      await deleteDoc(doc(db!, 'fixtures', leagueId));
+      
+      // 3. Delete teams associated with this league
+      const teams = await getTeams();
+      await Promise.all(
+        Object.keys(teams)
+          .filter(id => teams[id].leagueId === leagueId)
+          .map(id => deleteDoc(doc(db!, 'teams', id)))
+      );
+      
+      // 4. If this league was active, clear active league config
+      const activeId = await getActiveLeagueId();
+      if (activeId === leagueId) {
+        await saveActiveLeagueId(null);
+      }
+    },
+    async () => {
+      // 1. Delete from LS leagues
+      const leagues = await getLeagues();
+      delete leagues[leagueId];
+      localStorage.setItem(LS_LEAGUES, JSON.stringify(leagues));
+
+      // 2. Delete fixtures
+      const fixturesStr = localStorage.getItem(LS_FIXTURES) || '{}';
+      const allFixtures = JSON.parse(fixturesStr);
+      delete allFixtures[leagueId];
+      localStorage.setItem(LS_FIXTURES, JSON.stringify(allFixtures));
+      
+      // 3. Delete teams
+      const teams = await getTeams();
+      const updatedTeams: Record<string, Team> = {};
+      Object.keys(teams).forEach(id => {
+        if (teams[id].leagueId !== leagueId) {
+          updatedTeams[id] = teams[id];
+        }
+      });
+      localStorage.setItem(LS_TEAMS, JSON.stringify(updatedTeams));
+      
+      // 4. Check active league
+      const activeIdStr = localStorage.getItem(LS_ACTIVE_LEAGUE_ID);
+      const activeId = activeIdStr ? JSON.parse(activeIdStr) : null;
+      if (activeId === leagueId) {
+        localStorage.setItem(LS_ACTIVE_LEAGUE_ID, JSON.stringify(null));
+        triggerActiveLeagueIdListeners();
+      }
+      
+      triggerLeaguesListeners();
+      triggerTeamsListeners();
+      triggerFixturesListeners(leagueId);
+    },
+    'Delete tournament'
+  );
+};
+
 // Real-time Database Listeners Subscriptions
 export const subscribeToLeagues = (callback: ListenerCallback<Record<string, LeagueSettings>>) => {
   if (useFirebase && db) {

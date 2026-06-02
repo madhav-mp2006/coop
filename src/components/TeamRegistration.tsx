@@ -22,20 +22,60 @@ interface TeamRegistrationProps {
   teams: Record<string, Team>;
   fixtures: Match[];
   standings: StandingRow[];
-  onRegisterTeam: (name: string, color: string, player: Player) => Promise<{ teamId: string, code: string }>;
+  onRegisterTeam: (name: string, color: string, player: Player, flagCode?: string) => Promise<{ teamId: string, code: string }>;
   onJoinTeam: (code: string, player: Player) => Promise<{ teamId: string, code: string }>;
   onUpdateScore?: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
 }
 
-const PRESET_COLORS = [
-  { name: 'Sky Blue', hex: '#38bdf8' },
-  { name: 'Red Devil', hex: '#ef4444' },
-  { name: 'Orange Gunners', hex: '#f97316' },
-  { name: 'Classic Blue', hex: '#2563eb' },
-  { name: 'Emerald Green', hex: '#10b981' },
-  { name: 'Purple Magic', hex: '#a855f7' },
-  { name: 'Neon Gold', hex: '#eab308' },
-  { name: 'Hot Pink', hex: '#ec4899' }
+export const FIFA_2026_TEAMS = [
+  { name: 'Argentina', flagCode: 'AR', color: '#75aadb' },
+  { name: 'Australia', flagCode: 'AU', color: '#00008b' },
+  { name: 'Austria', flagCode: 'AT', color: '#e30b5d' },
+  { name: 'Belgium', flagCode: 'BE', color: '#e11b22' },
+  { name: 'Bosnia and Herzegovina', flagCode: 'BA', color: '#002fbe' },
+  { name: 'Brazil', flagCode: 'BR', color: '#fedf00' },
+  { name: 'Cameroon', flagCode: 'CM', color: '#007a5e' },
+  { name: 'Canada', flagCode: 'CA', color: '#ff0000' },
+  { name: 'Chile', flagCode: 'CL', color: '#0039a6' },
+  { name: 'Colombia', flagCode: 'CO', color: '#fcd116' },
+  { name: 'Costa Rica', flagCode: 'CR', color: '#002f6c' },
+  { name: 'Ivory Coast', flagCode: 'CI', color: '#ff8200' },
+  { name: 'Croatia', flagCode: 'HR', color: '#ff0000' },
+  { name: 'Czech Republic', flagCode: 'CZ', color: '#11457e' },
+  { name: 'Denmark', flagCode: 'DK', color: '#c60c30' },
+  { name: 'Ecuador', flagCode: 'EC', color: '#fcd116' },
+  { name: 'Egypt', flagCode: 'EG', color: '#c0930c' },
+  { name: 'England', flagCode: 'GB-ENG', color: '#ffffff' },
+  { name: 'France', flagCode: 'FR', color: '#002395' },
+  { name: 'Germany', flagCode: 'DE', color: '#000000' },
+  { name: 'Ghana', flagCode: 'GH', color: '#fcd116' },
+  { name: 'Iran', flagCode: 'IR', color: '#239f40' },
+  { name: 'Iraq', flagCode: 'IQ', color: '#007a3d' },
+  { name: 'Italy', flagCode: 'IT', color: '#0064aa' },
+  { name: 'Jamaica', flagCode: 'JM', color: '#009b3a' },
+  { name: 'Japan', flagCode: 'JP', color: '#00008b' },
+  { name: 'Korea Republic', flagCode: 'KR', color: '#ff0000' },
+  { name: 'Mexico', flagCode: 'MX', color: '#006341' },
+  { name: 'Morocco', flagCode: 'MA', color: '#c1272d' },
+  { name: 'Netherlands', flagCode: 'NL', color: '#ff6600' },
+  { name: 'New Zealand', flagCode: 'NZ', color: '#ffffff' },
+  { name: 'Panama', flagCode: 'PA', color: '#da121a' },
+  { name: 'Peru', flagCode: 'PE', color: '#d91414' },
+  { name: 'Poland', flagCode: 'PL', color: '#dc143c' },
+  { name: 'Portugal', flagCode: 'PT', color: '#ff0000' },
+  { name: 'Qatar', flagCode: 'QA', color: '#8a1538' },
+  { name: 'Saudi Arabia', flagCode: 'SA', color: '#006c35' },
+  { name: 'Senegal', flagCode: 'SN', color: '#00853f' },
+  { name: 'South Africa', flagCode: 'ZA', color: '#007a4d' },
+  { name: 'Spain', flagCode: 'ES', color: '#c60b1e' },
+  { name: 'Sweden', flagCode: 'SE', color: '#006aa7' },
+  { name: 'Switzerland', flagCode: 'CH', color: '#da291c' },
+  { name: 'Tunisia', flagCode: 'TN', color: '#e70013' },
+  { name: 'Turkey', flagCode: 'TR', color: '#e30a17' },
+  { name: 'Ukraine', flagCode: 'UA', color: '#ffd500' },
+  { name: 'United States', flagCode: 'US', color: '#3c3b6e' },
+  { name: 'Uruguay', flagCode: 'UY', color: '#0081c8' },
+  { name: 'Uzbekistan', flagCode: 'UZ', color: '#00b5e2' }
 ];
 
 const POSITIONS = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'];
@@ -57,17 +97,14 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
   const [myTeamCode, setMyTeamCode] = useState<string | null>(null);
   
   // Create Team States
-  const [teamName, setTeamName] = useState('');
-  const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0].hex);
+  const [teamName, setTeamName] = useState(FIFA_2026_TEAMS[0].name);
+  const [selectedColor, setSelectedColor] = useState(FIFA_2026_TEAMS[0].color);
+  const [selectedFlagCode, setSelectedFlagCode] = useState(FIFA_2026_TEAMS[0].flagCode);
   const [p1Name, setP1Name] = useState('');
-  const [p1Number, setP1Number] = useState('10');
-  const [p1Position, setP1Position] = useState('Forward');
 
   // Join Team States
   const [joinCode, setJoinCode] = useState('');
   const [p2Name, setP2Name] = useState('');
-  const [p2Number, setP2Number] = useState('7');
-  const [p2Position, setP2Position] = useState('Midfielder');
 
   // Access Team State
   const [accessCode, setAccessCode] = useState('');
@@ -146,26 +183,22 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
       return;
     }
 
-    const num = parseInt(p1Number);
-    if (isNaN(num) || num < 1 || num > 99) {
-      setError('Jersey number must be between 1 and 99.');
-      return;
-    }
-
     try {
       setSubmitting(true);
       const player: Player = {
         name: p1Name.trim(),
-        number: num,
-        position: p1Position
+        number: 10,
+        position: 'Player'
       };
       
-      const result = await onRegisterTeam(teamName.trim(), selectedColor, player);
+      const result = await onRegisterTeam(teamName.trim(), selectedColor, player, selectedFlagCode);
       
       localStorage.setItem('scores_my_team_code', result.code.toUpperCase());
       setMyTeamCode(result.code.toUpperCase());
       setSuccess(`Team "${teamName}" created successfully! Code: ${result.code}`);
-      setTeamName('');
+      setTeamName(FIFA_2026_TEAMS[0].name);
+      setSelectedColor(FIFA_2026_TEAMS[0].color);
+      setSelectedFlagCode(FIFA_2026_TEAMS[0].flagCode);
       setP1Name('');
     } catch (err: any) {
       setError(err.message || 'Failed to register team.');
@@ -192,18 +225,12 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
       return;
     }
 
-    const num = parseInt(p2Number);
-    if (isNaN(num) || num < 1 || num > 99) {
-      setError('Jersey number must be between 1 and 99.');
-      return;
-    }
-
     try {
       setSubmitting(true);
       const player: Player = {
         name: p2Name.trim(),
-        number: num,
-        position: p2Position
+        number: 7,
+        position: 'Player'
       };
       
       const result = await onJoinTeam(joinCode.trim().toUpperCase(), player);
@@ -372,10 +399,18 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
             {/* Header info bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-slate-850 pb-4 sm:pb-5">
               <div className="flex items-center gap-3">
-                <span 
-                  className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border border-slate-900 shadow-md flex-shrink-0"
-                  style={{ backgroundColor: myTeam.color }}
-                />
+                {myTeam.flagCode ? (
+                  <img
+                    src={`https://flagcdn.com/w40/${myTeam.flagCode.toLowerCase()}.png`}
+                    className="w-8 h-5.5 object-cover rounded shadow-md border border-slate-900/30 flex-shrink-0"
+                    alt={`${myTeam.name} flag`}
+                  />
+                ) : (
+                  <span 
+                    className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border border-slate-900 shadow-md flex-shrink-0"
+                    style={{ backgroundColor: myTeam.color }}
+                  />
+                )}
                 <div>
                   <h2 className="text-lg sm:text-xl font-black text-slate-100 uppercase tracking-tight">{myTeam.name}</h2>
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -434,10 +469,6 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                 <div className="min-w-0">
                   <span className="text-[9px] font-black uppercase text-emerald-450 tracking-wider">Player 1 (Creator)</span>
                   <h4 className="font-bold text-slate-200 truncate mt-1 text-base">{myTeam.players[0].name}</h4>
-                  <p className="text-xs text-slate-500 uppercase font-semibold mt-0.5">{myTeam.players[0].position}</p>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-mono font-black text-lg">
-                  #{myTeam.players[0].number}
                 </div>
               </div>
 
@@ -447,10 +478,6 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                   <div className="min-w-0">
                     <span className="text-[9px] font-black uppercase text-emerald-450 tracking-wider">Player 2 (Teammate)</span>
                     <h4 className="font-bold text-slate-200 truncate mt-1 text-base">{myTeam.players[1].name}</h4>
-                    <p className="text-xs text-slate-500 uppercase font-semibold mt-0.5">{myTeam.players[1].position}</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-mono font-black text-lg">
-                    #{myTeam.players[1].number}
                   </div>
                 </div>
               ) : (
@@ -528,10 +555,18 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                               </td>
                               <td className="py-2.5 px-2">
                                 <div className="flex items-center gap-2 truncate max-w-[120px]">
-                                  <span 
-                                    className="w-2.5 h-2.5 rounded-full border border-slate-950 flex-shrink-0"
-                                    style={{ backgroundColor: row.color }}
-                                  />
+                                  {row.flagCode ? (
+                                    <img
+                                      src={`https://flagcdn.com/w40/${row.flagCode.toLowerCase()}.png`}
+                                      className="w-5 h-3.5 object-cover rounded-sm shadow-sm flex-shrink-0 border border-slate-900/30"
+                                      alt={`${row.teamName} flag`}
+                                    />
+                                  ) : (
+                                    <span 
+                                      className="w-2.5 h-2.5 rounded-full border border-slate-950 flex-shrink-0"
+                                      style={{ backgroundColor: row.color }}
+                                    />
+                                  )}
                                   <span className="truncate">{row.teamName}</span>
                                 </div>
                               </td>
@@ -658,8 +693,16 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                           <div className="flex items-center justify-between gap-3">
                             {/* Home Team */}
                             <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <span className="w-2.5 h-2.5 rounded-full border border-slate-950 flex-shrink-0" style={{ backgroundColor: homeColor }} />
-                              <span className={`font-semibold truncate ${isMyTeamHome ? 'text-emerald-400 font-bold' : 'text-slate-250'}`}>
+                              {homeTeam?.flagCode ? (
+                                <img
+                                  src={`https://flagcdn.com/w40/${homeTeam.flagCode.toLowerCase()}.png`}
+                                  className="w-5 h-3.5 object-cover rounded-sm shadow-sm flex-shrink-0 border border-slate-900/30"
+                                  alt={`${homeName} flag`}
+                                />
+                              ) : (
+                                <span className="w-2.5 h-2.5 rounded-full border border-slate-950 flex-shrink-0" style={{ backgroundColor: homeColor }} />
+                              )}
+                              <span className={`font-semibold truncate ${isMyTeamHome ? 'text-emerald-400 font-bold' : 'text-slate-255'}`}>
                                 {homeName}
                               </span>
                             </div>
@@ -682,7 +725,15 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                               <span className={`font-semibold truncate ${isMyTeamAway ? 'text-emerald-400 font-bold' : 'text-slate-255'}`}>
                                 {awayName}
                               </span>
-                              <span className="w-2.5 h-2.5 rounded-full border border-slate-955 flex-shrink-0" style={{ backgroundColor: awayColor }} />
+                              {awayTeam?.flagCode ? (
+                                <img
+                                  src={`https://flagcdn.com/w40/${awayTeam.flagCode.toLowerCase()}.png`}
+                                  className="w-5 h-3.5 object-cover rounded-sm shadow-sm flex-shrink-0 border border-slate-900/30"
+                                  alt={`${awayName} flag`}
+                                />
+                              ) : (
+                                <span className="w-2.5 h-2.5 rounded-full border border-slate-955 flex-shrink-0" style={{ backgroundColor: awayColor }} />
+                              )}
                             </div>
                           </div>
 
@@ -828,33 +879,43 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                         <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-1">
                           Team Name
                         </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Real Madrid"
+                        <select
                           value={teamName}
-                          onChange={(e) => setTeamName(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
-                        />
+                          onChange={(e) => {
+                            const selected = FIFA_2026_TEAMS.find(t => t.name === e.target.value);
+                            if (selected) {
+                              setTeamName(selected.name);
+                              setSelectedColor(selected.color);
+                              setSelectedFlagCode(selected.flagCode);
+                            }
+                          }}
+                          className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none cursor-pointer"
+                        >
+                          {FIFA_2026_TEAMS.map((t) => (
+                            <option key={t.flagCode} value={t.name}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div className="col-span-2 sm:col-span-1">
-                        <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-1.5">
-                          Badge Color
+                        <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-1">
+                          Team Logo
                         </label>
-                        <div className="grid grid-cols-4 gap-1.5">
-                          {PRESET_COLORS.map((c) => (
-                            <button
-                              type="button"
-                              key={c.hex}
-                              onClick={() => setSelectedColor(c.hex)}
-                              className={`w-6 h-6 rounded-full border transition-all cursor-pointer relative ${
-                                selectedColor === c.hex 
-                                  ? 'border-slate-100 scale-105 shadow' 
-                                  : 'border-slate-950 hover:border-slate-800'
-                              }`}
-                              style={{ backgroundColor: c.hex }}
-                              title={c.name}
-                            />
-                          ))}
+                        <div className="flex items-center gap-3 h-9 px-3 bg-slate-950/60 border border-slate-850 rounded-xl">
+                          <img
+                            src={`https://flagcdn.com/w40/${selectedFlagCode.toLowerCase()}.png`}
+                            className="w-7 h-5 object-cover rounded shadow-md border border-slate-900/30"
+                            alt="Selected Flag"
+                          />
+                          <span 
+                            className="w-3 h-3 rounded-full border border-slate-900"
+                            style={{ backgroundColor: selectedColor }}
+                            title="Primary Color"
+                          />
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            {teamName}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -863,8 +924,8 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                       <p className="text-[10px] font-extrabold text-emerald-405 uppercase tracking-wider">
                         Player 1 Details (Creator)
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="sm:col-span-1">
+                      <div className="grid grid-cols-1 gap-3">
+                        <div>
                           <input
                             type="text"
                             placeholder="Player Name"
@@ -872,28 +933,6 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                             onChange={(e) => setP1Name(e.target.value)}
                             className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
                           />
-                        </div>
-                        <div>
-                          <input
-                            type="number"
-                            min="1"
-                            max="99"
-                            placeholder="Jersey No."
-                            value={p1Number}
-                            onChange={(e) => setP1Number(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <select
-                            value={p1Position}
-                            onChange={(e) => setP1Position(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
-                          >
-                            {POSITIONS.map(pos => (
-                              <option key={pos} value={pos}>{pos}</option>
-                            ))}
-                          </select>
                         </div>
                       </div>
                     </div>
@@ -947,8 +986,8 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                       <p className="text-[10px] font-extrabold text-emerald-405 uppercase tracking-wider">
                         Player 2 Details (Teammate)
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="sm:col-span-1">
+                      <div className="grid grid-cols-1 gap-3">
+                        <div>
                           <input
                             type="text"
                             placeholder="Player Name"
@@ -956,28 +995,6 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                             onChange={(e) => setP2Name(e.target.value)}
                             className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
                           />
-                        </div>
-                        <div>
-                          <input
-                            type="number"
-                            min="1"
-                            max="99"
-                            placeholder="Jersey No."
-                            value={p2Number}
-                            onChange={(e) => setP2Number(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <select
-                            value={p2Position}
-                            onChange={(e) => setP2Position(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
-                          >
-                            {POSITIONS.map(pos => (
-                              <option key={pos} value={pos}>{pos}</option>
-                            ))}
-                          </select>
                         </div>
                       </div>
                     </div>
@@ -1073,10 +1090,18 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
               >
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <span 
-                      className="w-3.5 h-3.5 rounded-full border border-slate-955 flex-shrink-0"
-                      style={{ backgroundColor: t.color }}
-                    />
+                    {t.flagCode ? (
+                      <img
+                        src={`https://flagcdn.com/w40/${t.flagCode.toLowerCase()}.png`}
+                        className="w-5 h-3.5 object-cover rounded-sm shadow-sm flex-shrink-0 border border-slate-900/30"
+                        alt={`${t.name} flag`}
+                      />
+                    ) : (
+                      <span 
+                        className="w-3.5 h-3.5 rounded-full border border-slate-955 flex-shrink-0"
+                        style={{ backgroundColor: t.color }}
+                      />
+                    )}
                     <span className="font-bold text-slate-200 truncate">{t.name}</span>
                   </div>
                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
@@ -1095,10 +1120,8 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                   {t.players.map((p, idx) => (
                     <div key={idx} className="flex items-center justify-between bg-slate-950/30 p-2 rounded border border-slate-900 text-xs">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-slate-500 font-mono font-bold">#{p.number}</span>
                         <span className="font-semibold text-slate-200 truncate">{p.name}</span>
                       </div>
-                      <span className="text-[10px] text-slate-500 uppercase font-semibold">{p.position}</span>
                     </div>
                   ))}
 

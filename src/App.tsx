@@ -14,6 +14,7 @@ import {
   saveFixtures,
   updateMatchScore,
   resetTournament,
+  deleteLeague,
   publicCreateTeam,
   publicJoinTeam,
   getDatabaseMode,
@@ -322,6 +323,14 @@ function App() {
     }
   };
 
+  const handleDeleteLeague = async (leagueId: string) => {
+    if (window.confirm('Are you sure you want to delete this tournament completely? This will wipe the tournament, all its teams, fixtures, and scores. This action CANNOT be undone.')) {
+      await deleteLeague(leagueId);
+      // Sync active tab
+      setActiveTab('standings');
+    }
+  };
+
   // Direct login switcher for Mock Testing
   const handleMockLogin = async (email: string) => {
     const isEmailAdmin = email === 'admin@scores.com';
@@ -614,6 +623,7 @@ function App() {
             onStartLeague={handleStartLeague}
             onSelectActiveLeague={saveActiveLeagueId}
             onReset={handleResetTournament}
+            onDeleteLeague={handleDeleteLeague}
             onUpdateScore={handleUpdateScore}
           />
         )}
@@ -625,9 +635,9 @@ function App() {
             teams={teams}
             fixtures={fixtures}
             standings={standings}
-            onRegisterTeam={async (name, color, player) => {
+            onRegisterTeam={async (name, color, player, flagCode) => {
               if (!activeLeagueId) throw new Error('No active league.');
-              return await publicCreateTeam(activeLeagueId, name, color, player);
+              return await publicCreateTeam(activeLeagueId, name, color, player, flagCode);
             }}
             onJoinTeam={publicJoinTeam}
             onUpdateScore={handleUpdateScore}
