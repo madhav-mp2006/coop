@@ -78,8 +78,6 @@ export const FIFA_2026_TEAMS = [
   { name: 'Uzbekistan', flagCode: 'UZ', color: '#00b5e2' }
 ];
 
-const POSITIONS = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'];
-
 export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
   league,
   activeLeagueId,
