@@ -499,8 +499,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between gap-3 text-sm font-semibold">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {/* Teams & Score — stacked rows for mobile readability */}
+                        <div className="flex flex-col gap-1.5 bg-slate-950/40 rounded-xl px-3 py-2.5 border border-slate-900">
+                          {/* Home team row */}
+                          <div className="flex items-center gap-2">
                             {homeTeam?.flagCode ? (
                               <img
                                 src={`https://flagcdn.com/w40/${homeTeam.flagCode.toLowerCase()}.png`}
@@ -510,17 +512,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             ) : (
                               <span className="w-2.5 h-2.5 rounded-full border border-slate-950 flex-shrink-0" style={{ backgroundColor: homeTeam?.color || '#475569' }} />
                             )}
-                            <span className="truncate text-slate-200">{homeName}</span>
+                            <span className="text-xs font-semibold text-slate-200 flex-1 min-w-0 truncate">{homeName}</span>
+                            <span className="font-mono font-black text-emerald-400 text-base w-6 text-right flex-shrink-0">{m.proposedHomeScore}</span>
                           </div>
-
-                          <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-950 rounded border border-slate-900 font-mono font-black text-emerald-450 text-base">
-                            <span>{m.proposedHomeScore}</span>
-                            <span className="text-slate-700">:</span>
-                            <span>{m.proposedAwayScore}</span>
+                          {/* Divider */}
+                          <div className="flex items-center gap-2 pl-7">
+                            <span className="text-[10px] text-slate-600 uppercase tracking-widest font-bold">vs</span>
                           </div>
-
-                          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end text-right">
-                            <span className="truncate text-slate-200">{awayName}</span>
+                          {/* Away team row */}
+                          <div className="flex items-center gap-2">
                             {awayTeam?.flagCode ? (
                               <img
                                 src={`https://flagcdn.com/w40/${awayTeam.flagCode.toLowerCase()}.png`}
@@ -528,25 +528,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 alt={`${awayName} flag`}
                               />
                             ) : (
-                              <span className="w-2.5 h-2.5 rounded-full border border-slate-955 flex-shrink-0" style={{ backgroundColor: awayTeam?.color || '#475569' }} />
+                              <span className="w-2.5 h-2.5 rounded-full border border-slate-950 flex-shrink-0" style={{ backgroundColor: awayTeam?.color || '#475569' }} />
                             )}
+                            <span className="text-xs font-semibold text-slate-200 flex-1 min-w-0 truncate">{awayName}</span>
+                            <span className="font-mono font-black text-emerald-400 text-base w-6 text-right flex-shrink-0">{m.proposedAwayScore}</span>
                           </div>
                         </div>
 
-                        {/* Action buttons */}
+                        {/* Action buttons — full width on mobile */}
                         {!isEditing ? (
-                          <div className="flex justify-end gap-2 border-t border-slate-900/60 pt-3">
+                          <div className="flex gap-2 border-t border-slate-900/60 pt-3">
                             <button
                               type="button"
                               onClick={() => startEditScore(m)}
-                              className="bg-slate-900 hover:bg-slate-800 text-slate-350 border border-slate-800 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors"
+                              className="flex-1 bg-slate-900 hover:bg-slate-800 text-slate-350 border border-slate-800 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors text-center"
                             >
-                              Override Score
+                              Override
                             </button>
                             <button
                               type="button"
                               onClick={() => handleApproveScore(m.id)}
-                              className="bg-emerald-600 hover:bg-emerald-500 text-slate-950 px-4 py-2.5 rounded-xl text-xs font-black transition-all shadow"
+                              disabled={submitting}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 px-4 py-2.5 rounded-xl text-xs font-black transition-all shadow text-center"
                             >
                               ✓ Approve
                             </button>

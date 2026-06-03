@@ -49,7 +49,6 @@ import {
 } from './services/onesignal';
 import { 
   Trophy, 
-  LogIn, 
   LogOut, 
   Tv, 
   UserCheck, 
@@ -116,6 +115,18 @@ function App() {
       setPushEnabled(isGranted);
     };
     setupOneSignal();
+  }, []);
+
+  // Auto-open admin login when URL contains #admin (secret admin entry point).
+  // Share the link as: yoursite.com/#admin
+  useEffect(() => {
+    if (window.location.hash === '#admin') {
+      setIsSignUp(false);
+      setShowAuthModal(true);
+      setAuthError(null);
+      // Clean the hash from the URL without a page reload
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
   }, []);
 
   // Subscriptions for user, active league ID, all leagues, and teams
@@ -743,15 +754,17 @@ function App() {
                 </button>
               )}
               
-              {/* Publicly available registration team tab */}
-              <button
-                onClick={() => setActiveTab('registration')}
-                className={`px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                  activeTab === 'registration' ? 'bg-slate-900 text-emerald-400' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Team Entry
-              </button>
+              {/* Team Entry tab — hidden for admins (they manage teams from Admin Panel) */}
+              {currentUser?.role !== 'admin' && (
+                <button
+                  onClick={() => setActiveTab('registration')}
+                  className={`px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                    activeTab === 'registration' ? 'bg-slate-900 text-emerald-400' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Team Entry
+                </button>
+              )}
 
               {currentUser?.role === 'admin' && (
                 <button
@@ -806,7 +819,8 @@ function App() {
                 </button>
               )}
 
-              {currentUser ? (
+              {/* Show logout + email only when admin is signed in */}
+              {currentUser && (
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="hidden sm:flex flex-col items-end">
                     <span className="text-xs font-semibold text-slate-350">{currentUser.email}</span>
@@ -822,18 +836,6 @@ function App() {
                     <span className="hidden sm:inline">Sign Out</span>
                   </button>
                 </div>
-              ) : (
-                <button
-                  onClick={() => {
-                    setIsSignUp(false);
-                    setShowAuthModal(true);
-                    setAuthError(null);
-                  }}
-                  className="px-3 sm:px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-lg text-xs sm:text-sm transition-all shadow-md flex items-center gap-1.5"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>Login</span>
-                </button>
               )}
             </div>
           </div>
@@ -868,14 +870,17 @@ function App() {
             Knockouts
           </button>
         )}
-        <button
-          onClick={() => setActiveTab('registration')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex-shrink-0 ${
-            activeTab === 'registration' ? 'bg-slate-900 text-emerald-400 border border-slate-800' : 'text-slate-400'
-          }`}
-        >
-          Team Entry
-        </button>
+        {/* Team Entry tab — hidden for admins in mobile nav */}
+        {currentUser?.role !== 'admin' && (
+          <button
+            onClick={() => setActiveTab('registration')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex-shrink-0 ${
+              activeTab === 'registration' ? 'bg-slate-900 text-emerald-400 border border-slate-800' : 'text-slate-400'
+            }`}
+          >
+            Team Entry
+          </button>
+        )}
         {currentUser?.role === 'admin' && (
           <button
             onClick={() => setActiveTab('admin')}
@@ -946,17 +951,7 @@ function App() {
                 <p className="text-sm max-w-md mx-auto text-slate-450 mb-6">
                   Please select a tournament from the header dropdown or log in as an Admin to create a new league.
                 </p>
-                {!currentUser && (
-                  <button
-                    onClick={() => {
-                      setIsSignUp(false);
-                      setShowAuthModal(true);
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm transition-all shadow-md"
-                  >
-                    Login as Admin
-                  </button>
-                )}
+
               </div>
             )}
             {activeLeagueId && league && league.status !== 'setup' && (
@@ -1032,6 +1027,13 @@ function App() {
       {/* FOOTER BAR */}
       <footer className="bg-slate-950 border-t border-slate-900 py-6 text-center text-xs text-slate-500">
         <p>© 2026 Scores — Football Tournament Management. Built with React & Tailwind.</p>
+        {/* Unobtrusive admin entry point — share yoursite.com/#admin with admin users */}
+        <button
+          onClick={() => { setShowAuthModal(true); setAuthError(null); }}
+          className="mt-3 text-slate-800 hover:text-slate-600 transition-colors text-[10px] tracking-widest uppercase"
+        >
+          Admin
+        </button>
       </footer>
 
       {/* AUTHENTICATION MODAL */}
