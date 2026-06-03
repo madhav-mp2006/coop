@@ -13,7 +13,9 @@ import {
   Copy, 
   Check, 
   Star,
-  Tv
+  Tv,
+  Gamepad2,
+  Clock
 } from 'lucide-react';
 
 interface TeamRegistrationProps {
@@ -25,6 +27,7 @@ interface TeamRegistrationProps {
   onRegisterTeam: (name: string, color: string, player: Player, flagCode?: string) => Promise<{ teamId: string, code: string }>;
   onJoinTeam: (code: string, player: Player) => Promise<{ teamId: string, code: string }>;
   onUpdateScore?: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
+  onSaveRoomCode?: (matchId: string, code: string) => Promise<void>;
 }
 
 export const FIFA_2026_TEAMS = [
@@ -86,7 +89,8 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
   standings,
   onRegisterTeam,
   onJoinTeam,
-  onUpdateScore
+  onUpdateScore,
+  onSaveRoomCode,
 }) => {
   // Portal Navigation tab: 'create' | 'join' | 'access'
   const [activePortalTab, setActivePortalTab] = useState<'create' | 'join' | 'access'>('create');
@@ -123,6 +127,13 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
   const [editAwayScore, setEditAwayScore] = useState<string>('');
   const [editError, setEditError] = useState<string | null>(null);
   const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Room code states
+  const [roomCodeMatchId, setRoomCodeMatchId] = useState<string | null>(null);
+  const [roomCodeInput, setRoomCodeInput] = useState<string>('');
+  const [roomCodeSubmitting, setRoomCodeSubmitting] = useState(false);
+  const [roomCodeError, setRoomCodeError] = useState<string | null>(null);
+  const [copiedRoomMatchId, setCopiedRoomMatchId] = useState<string | null>(null);
 
   // Sync myTeamCode on mount or active league change
   useEffect(() => {
@@ -328,6 +339,39 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
     } finally {
       setEditSubmitting(false);
     }
+  };
+
+  const handleOpenRoomCode = (match: Match) => {
+    setRoomCodeMatchId(match.id);
+    setRoomCodeInput(match.roomCode || '');
+    setRoomCodeError(null);
+  };
+
+  const handleSaveRoomCode = async (matchId: string) => {
+    const trimmed = roomCodeInput.trim();
+    if (!trimmed) {
+      setRoomCodeError('Please enter a room code.');
+      return;
+    }
+    if (!onSaveRoomCode) return;
+    try {
+      setRoomCodeSubmitting(true);
+      await onSaveRoomCode(matchId, trimmed.toUpperCase());
+      setRoomCodeMatchId(null);
+      setRoomCodeInput('');
+      setSuccess('Room code shared with opponent!');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      setRoomCodeError(err.message || 'Failed to save room code.');
+    } finally {
+      setRoomCodeSubmitting(false);
+    }
+  };
+
+  const handleCopyRoomCode = (matchId: string, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedRoomMatchId(matchId);
+    setTimeout(() => setCopiedRoomMatchId(null), 2000);
   };
 
   const isRegistrationClosed = league ? league.status !== 'registration' : true;
@@ -740,6 +784,104 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                               <span>⏳ Pending admin approval</span>
                             </div>
                           )}
+
+                          {/* ── ROOM CODE SECTION (active matches only) ── */}
+                          {isMyMatch && (() => {
+                            const isActiveRound = typeof m.round === 'number'
+                              ? league?.status === 'active' && m.round === league.currentRound
+                              : league?.status === 'knockout';
+                            if (!isActiveRound) return null;
+
+                            const hasCode = !!m.roomCode;
+                            const isEditingRC = roomCodeMatchId === m.id;
+                            const canSetCode = isMyTeamHome && !!onSaveRoomCode;
+
+                            return (
+                              <div className="mt-2 pt-2 border-t border-slate-800/40">
+                                {hasCode ? (
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-1.5">
+                                      <Gamepad2 className="w-3 h-3 text-violet-400 flex-shrink-0" />
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Room Code</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 bg-violet-950/40 border border-violet-500/25 rounded-lg px-2 py-1">
+                                      <span className="font-mono font-black text-violet-300 tracking-widest text-[11px]">{m.roomCode}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCopyRoomCode(m.id, m.roomCode!)}
+                                        className="text-slate-400 hover:text-violet-300 transition-colors ml-0.5"
+                                        title="Copy room code"
+                                      >
+                                        {copiedRoomMatchId === m.id
+                                          ? <Check className="w-3 h-3 text-emerald-400" />
+                                          : <Copy className="w-3 h-3" />}
+                                      </button>
+                                      {canSetCode && !isEditingRC && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenRoomCode(m)}
+                                          className="text-[9px] text-slate-500 hover:text-slate-300 font-bold ml-0.5 transition-colors"
+                                        >
+                                          Edit
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : isMyTeamAway ? (
+                                  <div className="flex items-center gap-1.5 text-slate-600">
+                                    <Clock className="w-3 h-3 flex-shrink-0 animate-pulse" />
+                                    <span className="text-[9px] font-semibold">Waiting for room code from {homeName}…</span>
+                                  </div>
+                                ) : canSetCode && !isEditingRC ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenRoomCode(m)}
+                                    className="flex items-center gap-1.5 text-[9px] font-bold text-violet-400 hover:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-500/35 px-2 py-1.5 rounded-lg transition-all w-full justify-center"
+                                  >
+                                    <Gamepad2 className="w-3 h-3" />
+                                    <span>Set Room Code for Away Team</span>
+                                  </button>
+                                ) : null}
+
+                                {/* Room code entry form */}
+                                {isEditingRC && canSetCode && (
+                                  <div className="mt-2 space-y-2">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                      <Gamepad2 className="w-3 h-3 text-violet-400" />
+                                      {hasCode ? 'Update Room Code' : 'Enter Room Code'}
+                                    </p>
+                                    <div className="flex gap-1.5">
+                                      <input
+                                        type="text"
+                                        value={roomCodeInput}
+                                        onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                                        placeholder="e.g. LOBBY-XK7"
+                                        maxLength={20}
+                                        className="flex-1 bg-slate-900 border border-slate-700 focus:border-violet-500 rounded-lg px-2.5 py-1.5 text-[10px] font-mono font-bold text-slate-100 focus:outline-none tracking-wider placeholder:text-slate-600 placeholder:font-normal placeholder:tracking-normal"
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveRoomCode(m.id); }}
+                                        autoFocus
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => { setRoomCodeMatchId(null); setRoomCodeInput(''); }}
+                                        disabled={roomCodeSubmitting}
+                                        className="text-[10px] text-slate-500 hover:text-slate-300 px-1.5 font-bold transition-colors"
+                                      >✕</button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSaveRoomCode(m.id)}
+                                        disabled={roomCodeSubmitting || !roomCodeInput.trim()}
+                                        className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold px-2.5 py-1.5 rounded-lg text-[10px] transition-all shadow"
+                                      >
+                                        {roomCodeSubmitting ? '…' : 'Share'}
+                                      </button>
+                                    </div>
+                                    {roomCodeError && <p className="text-[10px] text-rose-400 font-bold">{roomCodeError}</p>}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {/* Submit score button */}
                           {canSubmit && editingMatchId !== m.id && (

@@ -57,6 +57,7 @@ export interface Match {
   proposedHomeScore?: number | null;
   proposedAwayScore?: number | null;
   scoreStatus?: 'pending_approval' | 'approved' | null;
+  roomCode?: string | null;
 }
 
 export interface AppUser {
@@ -615,6 +616,33 @@ export const updateMatchScore = async (
       'Update match score'
     );
   }
+};
+
+// Save a room code for a specific match (set by home team)
+export const saveMatchRoomCode = async (
+  leagueId: string,
+  matchId: string,
+  roomCode: string
+) => {
+  const fixtures = await getFixtures(leagueId);
+  const index = fixtures.findIndex(m => m.id === matchId);
+  if (index === -1) return;
+
+  fixtures[index] = { ...fixtures[index], roomCode };
+
+  return runDbOperation(
+    async () => {
+      await setDoc(doc(db!, 'fixtures', leagueId), { matches: fixtures });
+    },
+    async () => {
+      const fixturesStr = localStorage.getItem(LS_FIXTURES) || '{}';
+      const allFixtures = JSON.parse(fixturesStr);
+      allFixtures[leagueId] = fixtures;
+      localStorage.setItem(LS_FIXTURES, JSON.stringify(allFixtures));
+      triggerFixturesListeners(leagueId);
+    },
+    'Save match room code'
+  );
 };
 
 // Reset a specific league's data

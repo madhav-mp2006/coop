@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Match, Team, AppUser } from '../services/firebase';
-import { Calendar, CheckCircle2, ShieldAlert, Edit3 } from 'lucide-react';
+import { Calendar, CheckCircle2, ShieldAlert, Edit3, Gamepad2, Copy, Check, Clock } from 'lucide-react';
 
 interface FixturesProps {
   fixtures: Match[];
@@ -8,6 +8,10 @@ interface FixturesProps {
   currentRound: number;
   currentUser: AppUser | null;
   onUpdateScore: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
+  /** Team ID of the current visitor (from their team dashboard code), so home-team controls show correctly */
+  myTeamId?: string | null;
+  /** Called when home team sets a room code for a match */
+  onSaveRoomCode?: (matchId: string, code: string) => Promise<void>;
 }
 
 export const Fixtures: React.FC<FixturesProps> = ({
@@ -15,13 +19,22 @@ export const Fixtures: React.FC<FixturesProps> = ({
   teams,
   currentRound,
   currentUser,
-  onUpdateScore
+  onUpdateScore,
+  myTeamId,
+  onSaveRoomCode,
 }) => {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [homeScore, setHomeScore] = useState<string>('');
   const [awayScore, setAwayScore] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Room code entry states
+  const [roomCodeMatchId, setRoomCodeMatchId] = useState<string | null>(null);
+  const [roomCodeInput, setRoomCodeInput] = useState<string>('');
+  const [roomCodeSubmitting, setRoomCodeSubmitting] = useState(false);
+  const [roomCodeError, setRoomCodeError] = useState<string | null>(null);
+  const [copiedMatchId, setCopiedMatchId] = useState<string | null>(null);
 
   // Group fixtures by round (only numeric round-robin rounds here)
   const roundRobinMatches = fixtures.filter(m => typeof m.round === 'number');
@@ -54,6 +67,38 @@ export const Fixtures: React.FC<FixturesProps> = ({
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleOpenRoomCode = (match: Match) => {
+    setRoomCodeMatchId(match.id);
+    setRoomCodeInput(match.roomCode || '');
+    setRoomCodeError(null);
+  };
+
+  const handleSaveRoomCode = async (matchId: string) => {
+    const trimmed = roomCodeInput.trim();
+    if (!trimmed) {
+      setRoomCodeError('Please enter a room code.');
+      return;
+    }
+    if (!onSaveRoomCode) return;
+
+    try {
+      setRoomCodeSubmitting(true);
+      await onSaveRoomCode(matchId, trimmed.toUpperCase());
+      setRoomCodeMatchId(null);
+      setRoomCodeInput('');
+    } catch (err: any) {
+      setRoomCodeError(err.message || 'Failed to save room code.');
+    } finally {
+      setRoomCodeSubmitting(false);
+    }
+  };
+
+  const handleCopyCode = (matchId: string, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedMatchId(matchId);
+    setTimeout(() => setCopiedMatchId(null), 2000);
   };
 
   return (
@@ -119,6 +164,14 @@ export const Fixtures: React.FC<FixturesProps> = ({
                   const canEnterScore = isRoundActive && isAdmin;
                   const isEditing = selectedMatchId === match.id;
 
+                  // Room code logic
+                  const isHomeTeamVisitor = myTeamId === match.homeTeamId;
+                  const isAwayTeamVisitor = myTeamId === match.awayTeamId;
+                  const hasRoomCode = !!match.roomCode;
+                  const isEditingRoomCode = roomCodeMatchId === match.id;
+                  // Home team can enter code during the active round only
+                  const canSetRoomCode = isHomeTeamVisitor && isRoundActive && !!onSaveRoomCode;
+
                   return (
                     <div
                       key={match.id}
@@ -144,7 +197,7 @@ export const Fixtures: React.FC<FixturesProps> = ({
                               style={{ backgroundColor: homeTeam.color }}
                             />
                           )}
-                          <span className="font-semibold text-slate-200 truncate text-xs sm:text-sm">{homeTeam.name}</span>
+                          <span className={`font-semibold truncate text-xs sm:text-sm ${isHomeTeamVisitor ? 'text-emerald-400' : 'text-slate-200'}`}>{homeTeam.name}</span>
                         </div>
 
                         {/* Score Box */}
@@ -162,7 +215,7 @@ export const Fixtures: React.FC<FixturesProps> = ({
 
                         {/* Away Team */}
                         <div className="flex items-center gap-2 flex-1 min-w-0 justify-end text-right">
-                          <span className="font-semibold text-slate-200 truncate text-xs sm:text-sm">{awayTeam.name}</span>
+                          <span className={`font-semibold truncate text-xs sm:text-sm ${isAwayTeamVisitor ? 'text-emerald-400' : 'text-slate-200'}`}>{awayTeam.name}</span>
                           {awayTeam.flagCode ? (
                             <img
                               src={`https://flagcdn.com/w40/${awayTeam.flagCode.toLowerCase()}.png`}
@@ -210,6 +263,95 @@ export const Fixtures: React.FC<FixturesProps> = ({
                           </button>
                         )}
                       </div>
+
+                      {/* ── ROOM CODE SECTION ── */}
+                      {(hasRoomCode || canSetRoomCode || isAwayTeamVisitor) && isRoundActive && (
+                        <div className={`mt-2 pt-2 border-t border-slate-800/40`}>
+                          {hasRoomCode ? (
+                            /* Code display — visible to everyone once set */
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <Gamepad2 className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Room Code</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 bg-violet-950/40 border border-violet-500/25 rounded-lg px-2.5 py-1">
+                                <span className="font-mono font-black text-violet-300 tracking-widest text-xs">{match.roomCode}</span>
+                                <button
+                                  onClick={() => handleCopyCode(match.id, match.roomCode!)}
+                                  className="text-slate-400 hover:text-violet-300 transition-colors ml-1"
+                                  title="Copy room code"
+                                >
+                                  {copiedMatchId === match.id
+                                    ? <Check className="w-3 h-3 text-emerald-400" />
+                                    : <Copy className="w-3 h-3" />}
+                                </button>
+                                {/* Home team can update the code */}
+                                {canSetRoomCode && !isEditingRoomCode && (
+                                  <button
+                                    onClick={() => handleOpenRoomCode(match)}
+                                    className="text-[9px] text-slate-500 hover:text-slate-300 font-bold ml-1 transition-colors"
+                                    title="Update room code"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ) : isAwayTeamVisitor ? (
+                            /* Away team waiting state */
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <Clock className="w-3 h-3 flex-shrink-0 animate-pulse" />
+                              <span className="text-[10px] font-semibold">Waiting for room code from {homeTeam.name}…</span>
+                            </div>
+                          ) : canSetRoomCode && !isEditingRoomCode ? (
+                            /* Home team — prompt to set code */
+                            <button
+                              onClick={() => handleOpenRoomCode(match)}
+                              className="flex items-center gap-1.5 text-[10px] font-bold text-violet-400 hover:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-500/35 px-2.5 py-1.5 rounded-lg transition-all w-full justify-center"
+                            >
+                              <Gamepad2 className="w-3.5 h-3.5" />
+                              <span>Set Room Code for Away Team</span>
+                            </button>
+                          ) : null}
+
+                          {/* Room code entry form */}
+                          {isEditingRoomCode && canSetRoomCode && (
+                            <div className="mt-2 space-y-2">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                <Gamepad2 className="w-3 h-3 text-violet-400" />
+                                {hasRoomCode ? 'Update Room Code' : 'Enter Room Code'}
+                              </p>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={roomCodeInput}
+                                  onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                                  placeholder="e.g. LOBBY-XK7"
+                                  maxLength={20}
+                                  className="flex-1 bg-slate-900 border border-slate-700 focus:border-violet-500 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-100 focus:outline-none tracking-wider placeholder:text-slate-600 placeholder:font-normal placeholder:tracking-normal"
+                                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveRoomCode(match.id); }}
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => { setRoomCodeMatchId(null); setRoomCodeInput(''); }}
+                                  disabled={roomCodeSubmitting}
+                                  className="text-[10px] text-slate-500 hover:text-slate-300 px-2 font-bold transition-colors"
+                                >
+                                  ✕
+                                </button>
+                                <button
+                                  onClick={() => handleSaveRoomCode(match.id)}
+                                  disabled={roomCodeSubmitting || !roomCodeInput.trim()}
+                                  className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition-all shadow"
+                                >
+                                  {roomCodeSubmitting ? '…' : 'Share'}
+                                </button>
+                              </div>
+                              {roomCodeError && <p className="text-[10px] text-rose-400 font-bold">{roomCodeError}</p>}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Inline Score Input Panel */}
                       {isEditing && (
