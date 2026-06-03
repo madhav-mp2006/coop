@@ -171,6 +171,8 @@ export const Fixtures: React.FC<FixturesProps> = ({
                   const isEditingRoomCode = roomCodeMatchId === match.id;
                   // Home team can enter code during the active round only
                   const canSetRoomCode = isHomeTeamVisitor && isRoundActive && !!onSaveRoomCode;
+                  // Only the two playing teams and the admin can see the room code
+                  const canSeeRoomCode = isAdmin || isHomeTeamVisitor || isAwayTeamVisitor;
 
                   return (
                     <div
@@ -264,11 +266,13 @@ export const Fixtures: React.FC<FixturesProps> = ({
                         )}
                       </div>
 
-                      {/* ── ROOM CODE SECTION ── */}
-                      {(hasRoomCode || canSetRoomCode || isAwayTeamVisitor) && isRoundActive && (
+                      {/* ── ROOM CODE SECTION ──
+                           Visible only to: home team, away team, admin.
+                           Other visitors never see the room code. */}
+                      {((hasRoomCode && canSeeRoomCode) || canSetRoomCode || isAwayTeamVisitor) && isRoundActive && (
                         <div className={`mt-2 pt-2 border-t border-slate-800/40`}>
-                          {hasRoomCode ? (
-                            /* Code display — visible to everyone once set */
+                          {hasRoomCode && canSeeRoomCode ? (
+                            /* Code display — only home team, away team, and admin */
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-1.5">
                                 <Gamepad2 className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />
