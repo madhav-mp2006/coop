@@ -108,14 +108,18 @@ function App() {
   // the button renders correctly immediately. We still run the async SDK check
   // in the background and correct state if the cached value is stale.
   useEffect(() => {
+    let active = true;
     const setupOneSignal = async () => {
       await initOneSignal();
       const isGranted = await isPushPermissionGranted();
-      if (isGranted) {
-        setPushEnabled(true);
+      if (active) {
+        setPushEnabled(isGranted);
       }
     };
     setupOneSignal();
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Auto-open admin login when URL contains #admin (secret admin entry point).

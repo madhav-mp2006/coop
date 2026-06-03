@@ -73,12 +73,8 @@ export const initOneSignal = async () => {
     // Sync the real SDK permission state into localStorage immediately after init.
     // This handles the case where the user already granted permission in a
     // previous session — we persist it so the UI shows correctly on next load.
-    // NOTE: Only write to local cache if the permission is explicitly active, 
-    // to avoid clearing the cache during temporary load states.
     const granted = !!OneSignal.Notifications.permission;
-    if (granted) {
-      setCachedPushGranted(true);
-    }
+    setCachedPushGranted(granted);
 
     // Keep the cache in sync whenever the permission changes (e.g., user grants
     // or revokes from browser settings while the tab is open).
@@ -162,6 +158,12 @@ export const requestPushPermission = (): Promise<void> => {
 /** Check if push notification permission is granted */
 export const isPushPermissionGranted = (): Promise<boolean> => {
   return new Promise((resolve) => {
+    // If standard browser notifications are not granted, return false immediately
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      resolve(false);
+      return;
+    }
+
     if (!appId || appId.includes('mock-')) {
       resolve(false);
       return;
@@ -169,11 +171,10 @@ export const isPushPermissionGranted = (): Promise<boolean> => {
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push((OneSignal: any) => {
-      const granted = !!OneSignal.Notifications.permission;
-      if (granted) {
-        setCachedPushGranted(true); // keep cache in sync
-      }
-      resolve(granted);
+      // Use OneSignal's subscription state or notification permission status
+      const isPushEnabled = OneSignal.Notifications.permission || false;
+      setCachedPushGranted(isPushEnabled);
+      resolve(isPushEnabled);
     });
   });
 };
