@@ -118,7 +118,7 @@ export const requestPushPermission = (): Promise<void> => {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async (OneSignal: any) => {
       try {
-        await OneSignal.Slidedown.promptPush();
+        await OneSignal.Notifications.requestPermission();
         resolve();
       } catch (err) {
         console.error('Error prompting for push notifications:', err);
