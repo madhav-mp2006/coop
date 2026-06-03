@@ -111,8 +111,9 @@ function App() {
     const setupOneSignal = async () => {
       await initOneSignal();
       const isGranted = await isPushPermissionGranted();
-      // setPushEnabled is idempotent — no flicker if cached value was already correct.
-      setPushEnabled(isGranted);
+      if (isGranted) {
+        setPushEnabled(true);
+      }
     };
     setupOneSignal();
   }, []);
