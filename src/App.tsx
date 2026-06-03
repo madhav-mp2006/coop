@@ -42,6 +42,7 @@ import {
   setOneSignalUser,
   requestPushPermission,
   isPushPermissionGranted,
+  getCachedPushGranted,
   notifyTeamOffline,
   notifyAdminsOffline,
   notifyLeagueOffline,
@@ -84,7 +85,9 @@ function App() {
 
   // Notification state
   const [notifEnabled, setNotifEnabled] = useState<boolean>(isNotificationsEnabled());
-  const [pushEnabled, setPushEnabled] = useState<boolean>(false);
+  // Initialise from localStorage cache so the button shows the correct state
+  // immediately on page load, before the async OneSignal SDK has resolved.
+  const [pushEnabled, setPushEnabled] = useState<boolean>(getCachedPushGranted);
   const prevTeamsRef = useRef<Record<string, Team>>({});
   const prevLeagueStatusRef = useRef<string | null>(null);
   const prevLeagueRoundRef = useRef<number | null>(null);
@@ -101,11 +104,15 @@ function App() {
     return savedCode ? savedCode.toUpperCase() : null;
   });
 
-  // Initialize OneSignal Web Push on mount
+  // Initialize OneSignal Web Push on mount.
+  // pushEnabled is already seeded from localStorage (getCachedPushGranted) so
+  // the button renders correctly immediately. We still run the async SDK check
+  // in the background and correct state if the cached value is stale.
   useEffect(() => {
     const setupOneSignal = async () => {
       await initOneSignal();
       const isGranted = await isPushPermissionGranted();
+      // setPushEnabled is idempotent — no flicker if cached value was already correct.
       setPushEnabled(isGranted);
     };
     setupOneSignal();
@@ -783,6 +790,7 @@ function App() {
                   id="push-toggle-btn"
                   onClick={async () => {
                     await requestPushPermission();
+                    // isPushPermissionGranted also writes the result to localStorage
                     const isGranted = await isPushPermissionGranted();
                     setPushEnabled(isGranted);
                   }}

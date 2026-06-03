@@ -15,6 +15,21 @@ const isConfigured = (): boolean => {
   return !!appId && !appId.includes('mock-') && !!restApiKey && !restApiKey.includes('mock-');
 };
 
+// ── Persistent push-permission cache ──────────────────────────────────────
+// The OneSignal SDK loads asynchronously, so on page load the push state
+// is not immediately available. We mirror it in localStorage so the UI
+// can render the correct "Offline Alerts On" state instantly on reload.
+const LS_PUSH_GRANTED = 'onesignal_push_granted';
+
+export const getCachedPushGranted = (): boolean => {
+  return localStorage.getItem(LS_PUSH_GRANTED) === 'true';
+};
+
+const setCachedPushGranted = (granted: boolean) => {
+  localStorage.setItem(LS_PUSH_GRANTED, granted ? 'true' : 'false');
+};
+// ──────────────────────────────────────────────────────────────────────────
+
 /** Load the OneSignal SDK script dynamically */
 const loadOneSignalScript = (): Promise<void> => {
   return new Promise((resolve) => {
@@ -54,6 +69,18 @@ export const initOneSignal = async () => {
       },
     });
     console.log('[OneSignal] SDK initialized successfully.');
+
+    // Sync the real SDK permission state into localStorage immediately after init.
+    // This handles the case where the user already granted permission in a
+    // previous session — we persist it so the UI shows correctly on next load.
+    const granted = !!OneSignal.Notifications.permission;
+    setCachedPushGranted(granted);
+
+    // Keep the cache in sync whenever the permission changes (e.g., user grants
+    // or revokes from browser settings while the tab is open).
+    OneSignal.Notifications.addEventListener('permissionChange', (isGranted: boolean) => {
+      setCachedPushGranted(isGranted);
+    });
   });
 };
 
@@ -138,7 +165,9 @@ export const isPushPermissionGranted = (): Promise<boolean> => {
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push((OneSignal: any) => {
-      resolve(!!OneSignal.Notifications.permission);
+      const granted = !!OneSignal.Notifications.permission;
+      setCachedPushGranted(granted); // keep cache in sync
+      resolve(granted);
     });
   });
 };
