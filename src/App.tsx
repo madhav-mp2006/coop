@@ -20,7 +20,8 @@ import {
   saveMatchRoomCode,
   getDatabaseMode,
   toggleDatabaseMode,
-  isFirebaseConfigured
+  isFirebaseConfigured,
+  resetMatchScore
 } from './services/firebase';
 import type { AppUser, LeagueSettings, Team, Match } from './services/firebase';
 import { generateRoundRobinFixtures, calculateStandings } from './services/db';
@@ -38,15 +39,13 @@ import {
   getNotificationPermission,
 } from './services/notifications';
 import {
-  initOneSignal,
-  setOneSignalUser,
   requestPushPermission,
-  isPushPermissionGranted,
-  getCachedPushGranted,
-  notifyTeamOffline,
-  notifyAdminsOffline,
-  notifyLeagueOffline,
-} from './services/onesignal';
+  getFCMToken,
+  listenForForegroundMessages,
+  registerTokenToTeam,
+  registerTokenToAdmin,
+  sendFCMNotification
+} from './services/fcm';
 import { 
   Trophy, 
   LogOut, 
@@ -86,7 +85,7 @@ function App() {
   const [notifEnabled, setNotifEnabled] = useState<boolean>(isNotificationsEnabled());
   // Initialise from localStorage cache so the button shows the correct state
   // immediately on page load, before the async OneSignal SDK has resolved.
-  const [pushEnabled, setPushEnabled] = useState<boolean>(getCachedPushGranted);
+  const [pushEnabled, setPushEnabled] = useState<boolean>(false);
   const prevTeamsRef = useRef<Record<string, Team>>({});
   const prevLeagueStatusRef = useRef<string | null>(null);
   const prevLeagueRoundRef = useRef<number | null>(null);
@@ -103,22 +102,29 @@ function App() {
     return savedCode ? savedCode.toUpperCase() : null;
   });
 
-  // Initialize OneSignal Web Push on mount.
-  // pushEnabled is already seeded from localStorage (getCachedPushGranted) so
-  // the button renders correctly immediately. We still run the async SDK check
-  // in the background and correct state if the cached value is stale.
+  // Initialize FCM token check on mount.
   useEffect(() => {
     let active = true;
-    const setupOneSignal = async () => {
-      await initOneSignal();
-      const isGranted = await isPushPermissionGranted();
+    const setupFCM = async () => {
+      if (!isFirebaseConfigured) return;
+      const token = await getFCMToken();
       if (active) {
-        setPushEnabled(isGranted);
+        setPushEnabled(!!token);
       }
     };
-    setupOneSignal();
+    setupFCM();
+
+    // Listen for foreground messages
+    const unsubscribe = listenForForegroundMessages((payload) => {
+      console.log('Received foreground message:', payload);
+      // We could use the existing local `notify` library to show a toast,
+      // but if the browser has native permission, the service worker handles background,
+      // and foreground we might want to pop up something in the UI natively.
+    });
+
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 
@@ -308,18 +314,6 @@ function App() {
     ) || null;
   })();
 
-  // Sync user details/tags to OneSignal for targeted push notifications
-  useEffect(() => {
-    let activeTeamId: string | null = null;
-    if (currentUser && currentUser.teamId) {
-      activeTeamId = currentUser.teamId;
-    } else if (myVisitorTeam) {
-      activeTeamId = myVisitorTeam.id;
-    }
-    const isAdmin = currentUser?.role === 'admin';
-    setOneSignalUser(activeTeamId, currentUser?.email || null, isAdmin, activeLeagueId);
-  }, [currentUser, myVisitorTeam, activeLeagueId]);
-
   // Room code save handler — saves to DB and notifies the away team
   const handleSaveRoomCode = async (matchId: string, code: string) => {
     if (!activeLeagueId) return;
@@ -336,15 +330,17 @@ function App() {
         notify.roomCodePosted(homeTeam.name, awayTeam.name, code);
         
         // Trigger offline/background push notifications
-        notifyTeamOffline(
-          awayTeam.id,
-          '🎮 Room Code Ready!',
-          `${homeTeam.name} has posted the room code for your match vs ${awayTeam.name}: ${code}`
-        );
-        
-        notifyAdminsOffline(
+        sendFCMNotification(
+          'admins',
+          null,
           '🎮 Match Room Code Posted',
           `${homeTeam.name} vs ${awayTeam.name}: Room code is ${code}`
+        );
+        sendFCMNotification(
+          'team',
+          awayTeam.id,
+          '🎮 Match Room Code Posted',
+          `${homeTeam.name} has posted the room code: ${code}. You can join now!`
         );
       }
     }
@@ -356,13 +352,13 @@ function App() {
     setMyVisitorTeamId(savedCode ? savedCode.toUpperCase() : null);
   };
 
-  // Notification bell toggle handler
   const handleToggleNotifications = async () => {
-    const hasOneSignal = !!import.meta.env.VITE_ONESIGNAL_APP_ID;
+    const hasFCM = !!import.meta.env.VITE_FIREBASE_VAPID_KEY;
     
-    if (notifEnabled || (hasOneSignal && pushEnabled)) {
+    if (notifEnabled || (hasFCM && pushEnabled)) {
       disableNotifications();
       setNotifEnabled(false);
+      setPushEnabled(false);
       // Note: Browser push permission cannot be programmatically revoked, 
       // but we can locally ignore it or rely on standard notifications disabled flag.
     } else {
@@ -374,12 +370,32 @@ function App() {
       const result = await requestNotificationPermission();
       setNotifEnabled(result === 'granted');
 
-      // Request OneSignal permission as well if configured
-      if (hasOneSignal && result === 'granted') {
-        await requestPushPermission();
-        const isGranted = await isPushPermissionGranted();
-        setPushEnabled(isGranted);
+      // Request FCM permission as well if configured
+      if (hasFCM && result === 'granted') {
+        const isGranted = await requestPushPermission();
+        if (isGranted) {
+          const token = await getFCMToken();
+          setPushEnabled(!!token);
+          // Register token based on role
+          if (currentUser?.role === 'admin') {
+            await registerTokenToAdmin();
+          } else if (currentUser?.teamId) {
+            await registerTokenToTeam(currentUser.teamId);
+          } else if (myVisitorTeamId) {
+            await registerTokenToTeam(myVisitorTeamId);
+          }
+        }
       }
+    }
+  };
+
+  // Reset match score to Scheduled state (Admin only)
+  const handleResetMatchScore = async (matchId: string) => {
+    if (!activeLeagueId) return;
+    try {
+      await resetMatchScore(activeLeagueId, matchId);
+    } catch (err: any) {
+      alert(err.message || 'Failed to reset match score.');
     }
   };
 
@@ -400,7 +416,9 @@ function App() {
         notify.scorePendingApproval(home, away);
         
         // Notify admins that a score is awaiting their approval
-        notifyAdminsOffline(
+        sendFCMNotification(
+          'admins',
+          null,
           '📋 Score Pending Approval',
           `${home} vs ${away} (${homeScoreVal}-${awayScoreVal}) submitted by captain, awaiting your review.`
         );
@@ -416,15 +434,11 @@ function App() {
         const away = teams[matchTeams.awayTeamId]?.name || 'Away';
         notify.scoreUpdated(home, away, homeScoreVal, awayScoreVal);
         
-        // Notify all players in this league that the points table / score updated
-        notifyLeagueOffline(
-          activeLeagueId,
-          '⚽ Points Table Updated',
-          `${home} ${homeScoreVal} – ${awayScoreVal} ${away}. Standings points table has been updated!`
-        );
-        
-        // Notify admins
-        notifyAdminsOffline(
+        // FCM does not support wildcard tag sending directly without topics. 
+        // We will just notify admins as a proxy for "global" updates for now.
+        sendFCMNotification(
+          'admins',
+          null,
           '⚽ Points Table Updated',
           `Score approved: ${home} ${homeScoreVal} – ${awayScoreVal} ${away}`
         );
@@ -507,22 +521,20 @@ function App() {
             await saveLeagueSettings(activeLeagueId, { status: 'knockout' });
             
             // Trigger offline push notifications
-            notifyLeagueOffline(
-              activeLeagueId,
+            sendFCMNotification(
+              'admins',
+              null,
               '🏆 Knockout Stage Begins!',
               'The Group Stage is complete. Semi-final matches are now live!'
-            );
-            notifyAdminsOffline(
-              '🏆 Knockout Stage Begins',
-              `Tournament "${currentSettings.name}": transitioning to Knockouts.`
             );
           } else {
             // Not enough teams, finish tournament
             await saveLeagueSettings(activeLeagueId, { status: 'finished' });
             
             // Trigger offline push notifications
-            notifyLeagueOffline(
-              activeLeagueId,
+            sendFCMNotification(
+              'admins',
+              null,
               '🏁 Tournament Finished',
               `The tournament "${currentSettings.name}" has concluded.`
             );
@@ -532,12 +544,9 @@ function App() {
           await saveLeagueSettings(activeLeagueId, { currentRound: activeRoundNum + 1 });
           
           // Trigger offline push notifications for new round
-          notifyLeagueOffline(
-            activeLeagueId,
-            '🏁 New Round Started',
-            `Round ${activeRoundNum + 1} fixtures are now live! Check your match sheet.`
-          );
-          notifyAdminsOffline(
+          sendFCMNotification(
+            'admins',
+            null,
             '🏁 New Round Started',
             `Tournament "${currentSettings.name}": Round ${activeRoundNum + 1} has started.`
           );
@@ -577,14 +586,11 @@ function App() {
       notify.championCrowned(championName);
       
       // Trigger offline push notifications
-      notifyLeagueOffline(
-        activeLeagueId,
+      sendFCMNotification(
+        'admins',
+        null,
         '🥇 Champion Crowned!',
         `"${championName}" is the tournament champion! Congratulations!`
-      );
-      notifyAdminsOffline(
-        '🥇 Champion Crowned',
-        `Tournament "${currentSettings.name}": "${championName}" is crowned champion.`
       );
     }
   };
@@ -610,22 +616,28 @@ function App() {
     const team = teams[teamId];
     if (team) {
       if (status === 'approved') {
-        notifyTeamOffline(
+        sendFCMNotification(
+          'team',
           teamId,
           '✅ Team Approved!',
           `Your team "${team.name}" has been approved for the tournament.`
         );
-        notifyAdminsOffline(
+        sendFCMNotification(
+          'admins',
+          null,
           '✅ Team Approved',
           `Team "${team.name}" has been approved.`
         );
       } else if (status === 'rejected') {
-        notifyTeamOffline(
+        sendFCMNotification(
+          'team',
           teamId,
           '❌ Team Rejected',
           `Your team registration for "${team.name}" was not approved.`
         );
-        notifyAdminsOffline(
+        sendFCMNotification(
+          'admins',
+          null,
           '❌ Team Rejected',
           `Team "${team.name}" registration was rejected.`
         );
@@ -638,13 +650,22 @@ function App() {
     const result = await firebasePublicCreateTeam(leagueId, name, color, player, flagCode);
     
     // Trigger offline/background push notifications for admin
-    notifyAdminsOffline(
+    sendFCMNotification(
+      'admins',
+      null,
       '🆕 New Team Registered',
       `"${name}" has registered and is awaiting approval in the Admin Panel.`
     );
     
+    // Register token if already granted
+    if (pushEnabled) {
+      await registerTokenToTeam(result.teamId);
+    }
+    
     return result;
   };
+
+
 
   // Start league schedule generation
   const handleStartLeague = async () => {
@@ -663,15 +684,17 @@ function App() {
       currentRound: 1,
       totalRounds: totalRounds
     });
-    notify.tournamentStarted(league.name);
-
+    
     // Trigger offline push notifications
-    notifyLeagueOffline(
-      activeLeagueId,
+    sendFCMNotification(
+      'team',
+      null,
       '🏁 Tournament Started!',
       `"${league.name}" has kicked off! Round 1 fixtures are now live.`
     );
-    notifyAdminsOffline(
+    sendFCMNotification(
+      'admins',
+      null,
       '🏁 Tournament Started',
       `Tournament "${league.name}" has been started successfully.`
     );
@@ -800,6 +823,7 @@ function App() {
               {/* Notification Bell */}
               {'Notification' in window && (
                 <button
+                  type="button"
                   id="notif-toggle-btn"
                   onClick={handleToggleNotifications}
                   title={(notifEnabled || pushEnabled) ? 'Disable notifications' : 'Enable notifications'}
@@ -814,17 +838,42 @@ function App() {
                 </button>
               )}
 
+              {/* Test Alert Button */}
+              {import.meta.env.VITE_FIREBASE_VAPID_KEY && (notifEnabled || pushEnabled) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const myId = currentUser?.teamId || myVisitorTeam?.id;
+                    if (myId) {
+                      await sendFCMNotification('team', myId, 'Test Alert', 'This is a test offline alert sent to your squad!');
+                      alert('Test alert sent to your squad!');
+                    } else if (currentUser?.role === 'admin') {
+                      await sendFCMNotification('admins', null, 'Test Alert', 'This is a test offline alert sent to admins!');
+                      alert('Test alert sent to admins!');
+                    } else {
+                      alert('You must create or join a team first, or log in as an admin, to receive targeted offline alerts.');
+                    }
+                  }}
+                  title="Send a test offline alert to yourself"
+                  className="p-2 rounded-lg border bg-slate-900 border-slate-800 text-slate-400 hover:text-blue-400 hover:border-slate-700 transition-all flex items-center gap-1.5 text-xs font-semibold"
+                >
+                  <Tv className="w-4 h-4" />
+                  <span className="hidden md:inline">Test Alert</span>
+                </button>
+              )}
+
               {/* Show logout + email only when admin is signed in */}
               {currentUser && (
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="hidden sm:flex flex-col items-end">
-                    <span className="text-xs font-semibold text-slate-350">{currentUser.email}</span>
-                    <span className="text-[10px] text-slate-500 uppercase font-extrabold tracking-wider">
-                      {currentUser.role}
-                    </span>
-                  </div>
-                  <button
-                    onClick={signOut}
+                 <div className="flex items-center gap-2 sm:gap-3">
+                   <div className="hidden sm:flex flex-col items-end">
+                     <span className="text-xs font-semibold text-slate-350">{currentUser.email}</span>
+                     <span className="text-[10px] text-slate-500 uppercase font-extrabold tracking-wider">
+                       {currentUser.role}
+                     </span>
+                   </div>
+                   <button
+                     type="button"
+                     onClick={signOut}
                     className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-lg border border-slate-850 transition-all flex items-center gap-1.5 text-xs font-semibold"
                   >
                     <LogOut className="w-4 h-4" />
@@ -964,6 +1013,7 @@ function App() {
             onUpdateScore={handleUpdateScore}
             myTeamId={myVisitorTeam?.id || null}
             onSaveRoomCode={handleSaveRoomCode}
+            onResetMatchScore={handleResetMatchScore}
           />
         )}
 
@@ -992,6 +1042,7 @@ function App() {
             onReset={handleResetTournament}
             onDeleteLeague={handleDeleteLeague}
             onUpdateScore={handleUpdateScore}
+            onResetMatchScore={handleResetMatchScore}
           />
         )}
 
@@ -1011,6 +1062,12 @@ function App() {
             onJoinTeam={async (code, player) => {
               const result = await publicJoinTeam(code, player);
               syncVisitorTeam(); // keep myVisitorTeamId in sync after joining
+              
+              // Register token if already granted
+              if (pushEnabled) {
+                await registerTokenToTeam(result.teamId);
+              }
+              
               return result;
             }}
             onUpdateScore={handleUpdateScore}

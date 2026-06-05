@@ -328,6 +328,10 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
       return;
     }
 
+    if (!window.confirm(`Are you sure you want to submit this score as ${hScoreVal} - ${aScoreVal}?`)) {
+      return;
+    }
+
     try {
       setEditSubmitting(true);
       await onUpdateScore(matchId, hScoreVal, aScoreVal);

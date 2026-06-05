@@ -12,6 +12,7 @@ interface FixturesProps {
   myTeamId?: string | null;
   /** Called when home team sets a room code for a match */
   onSaveRoomCode?: (matchId: string, code: string) => Promise<void>;
+  onResetMatchScore?: (matchId: string) => Promise<void>;
 }
 
 export const Fixtures: React.FC<FixturesProps> = ({
@@ -22,6 +23,7 @@ export const Fixtures: React.FC<FixturesProps> = ({
   onUpdateScore,
   myTeamId,
   onSaveRoomCode,
+  onResetMatchScore,
 }) => {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [homeScore, setHomeScore] = useState<string>('');
@@ -55,6 +57,10 @@ export const Fixtures: React.FC<FixturesProps> = ({
 
     if (isNaN(hScoreVal) || isNaN(aScoreVal) || hScoreVal < 0 || aScoreVal < 0) {
       setError('Please enter valid, non-negative scores.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to submit the score as ${hScoreVal} - ${aScoreVal}?`)) {
       return;
     }
 
@@ -254,15 +260,32 @@ export const Fixtures: React.FC<FixturesProps> = ({
                           )}
                         </div>
 
-                        {canEnterScore && !isEditing && (
-                          <button
-                            onClick={() => startSubmitScore(match)}
-                            className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors bg-emerald-500/10 hover:bg-emerald-500/25 px-2.5 py-1.5 rounded-md border border-emerald-500/20 tap-target"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">{isCompleted ? 'Override' : 'Submit Score'}</span>
-                            <span className="sm:hidden">Score</span>
-                          </button>
+                        {((canEnterScore && !isEditing) || (isAdmin && (isCompleted || match.scoreStatus === 'pending_approval') && onResetMatchScore)) && (
+                          <div className="flex items-center gap-2">
+                            {isAdmin && (isCompleted || match.scoreStatus === 'pending_approval') && onResetMatchScore && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (window.confirm("Are you sure you want to reset this match's score and revert it to Scheduled?")) {
+                                    await onResetMatchScore(match.id);
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1 text-xs text-rose-400 hover:text-rose-350 font-medium transition-colors bg-rose-500/10 hover:bg-rose-500/25 px-2.5 py-1.5 rounded-md border border-rose-500/20 tap-target"
+                              >
+                                Reset Match
+                              </button>
+                            )}
+                            {canEnterScore && !isEditing && (
+                              <button
+                                onClick={() => startSubmitScore(match)}
+                                className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors bg-emerald-500/10 hover:bg-emerald-500/25 px-2.5 py-1.5 rounded-md border border-emerald-500/20 tap-target"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">{isCompleted ? 'Override' : 'Submit Score'}</span>
+                                <span className="sm:hidden">Score</span>
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
 

@@ -15,6 +15,7 @@ interface AdminPanelProps {
   onReset: () => Promise<void>;
   onDeleteLeague: (id: string) => Promise<void>;
   onUpdateScore: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
+  onResetMatchScore?: (matchId: string) => Promise<void>;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -29,7 +30,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onSelectActiveLeague,
   onReset,
   onDeleteLeague,
-  onUpdateScore
+  onUpdateScore,
+  onResetMatchScore
 }) => {
   const [leagueName, setLeagueName] = useState('');
   const [teamCount, setTeamCount] = useState(4);
@@ -57,6 +59,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!match) return;
     const homeS = match.proposedHomeScore ?? 0;
     const awayS = match.proposedAwayScore ?? 0;
+    if (!window.confirm(`Are you sure you want to approve the score as ${homeS} - ${awayS}?`)) {
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError(null);
@@ -75,6 +81,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setOverrideError('Please enter valid, non-negative scores.');
       return;
     }
+    if (!window.confirm(`Are you sure you want to override and approve the score as ${hVal} - ${aVal}?`)) {
+      return;
+    }
+
     try {
       setSubmitting(true);
       setOverrideError(null);
@@ -545,6 +555,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             >
                               Override
                             </button>
+                            {onResetMatchScore && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (window.confirm("Are you sure you want to reject and reset this pending score submission?")) {
+                                    await onResetMatchScore(m.id);
+                                  }
+                                }}
+                                className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors text-center"
+                              >
+                                Reject
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleApproveScore(m.id)}

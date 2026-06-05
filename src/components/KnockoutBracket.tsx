@@ -50,6 +50,10 @@ export const KnockoutBracket: React.FC<KnockoutBracketProps> = ({
       return;
     }
 
+    if (!window.confirm(`Are you sure you want to submit this knockout score as ${hScoreVal} - ${aScoreVal}?`)) {
+      return;
+    }
+
     try {
       setSubmitting(true);
       await onUpdateScore(matchId, hScoreVal, aScoreVal);

@@ -9,6 +9,8 @@ import {
   onSnapshot,
   deleteDoc
 } from 'firebase/firestore';
+import { getMessaging } from 'firebase/messaging';
+import type { Messaging } from 'firebase/messaging';
 
 // Types
 export interface Player {
@@ -101,6 +103,7 @@ const isFirebaseConfigured = !!(
 
 let app;
 let db: ReturnType<typeof getFirestore> | null = null;
+let messaging: Messaging | null = null;
 let useFirebase = false;
 
 const forceMock = localStorage.getItem('scores_force_mock_db') === 'true';
@@ -109,6 +112,9 @@ if (isFirebaseConfigured && !forceMock) {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     db = getFirestore(app);
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      messaging = getMessaging(app);
+    }
     useFirebase = true;
     console.log('Scores: Firestore initialized successfully.');
     
@@ -298,7 +304,7 @@ export const signOut = async () => {
 };
 
 // Database Mode Switcher helpers
-export { isFirebaseConfigured };
+export { isFirebaseConfigured, db, messaging };
 export const getDatabaseMode = () => useFirebase ? 'firebase' : 'mock';
 
 export const toggleDatabaseMode = () => {
@@ -614,6 +620,41 @@ export const updateMatchScore = async (
         triggerFixturesListeners(leagueId);
       },
       'Update match score'
+    );
+  }
+};
+
+export const resetMatchScore = async (
+  leagueId: string,
+  matchId: string
+) => {
+  const fixtures = await getFixtures(leagueId);
+  const index = fixtures.findIndex(m => m.id === matchId);
+  if (index !== -1) {
+    fixtures[index] = {
+      ...fixtures[index],
+      homeScore: null,
+      awayScore: null,
+      proposedHomeScore: null,
+      proposedAwayScore: null,
+      scoreStatus: null,
+      isCompleted: false,
+      submittedBy: null,
+      isDisputed: false
+    };
+
+    await runDbOperation(
+      async () => {
+        await setDoc(doc(db!, 'fixtures', leagueId), { matches: fixtures });
+      },
+      async () => {
+        const fixturesStr = localStorage.getItem(LS_FIXTURES) || '{}';
+        const allFixtures = JSON.parse(fixturesStr);
+        allFixtures[leagueId] = fixtures;
+        localStorage.setItem(LS_FIXTURES, JSON.stringify(allFixtures));
+        triggerFixturesListeners(leagueId);
+      },
+      'Reset match score'
     );
   }
 };
