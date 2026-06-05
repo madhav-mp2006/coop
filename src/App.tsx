@@ -358,16 +358,28 @@ function App() {
 
   // Notification bell toggle handler
   const handleToggleNotifications = async () => {
-    if (notifEnabled) {
+    const hasOneSignal = !!import.meta.env.VITE_ONESIGNAL_APP_ID;
+    
+    if (notifEnabled || (hasOneSignal && pushEnabled)) {
       disableNotifications();
       setNotifEnabled(false);
+      // Note: Browser push permission cannot be programmatically revoked, 
+      // but we can locally ignore it or rely on standard notifications disabled flag.
     } else {
       if (getNotificationPermission() === 'denied') {
         alert('Notifications are blocked in your browser. Please allow them in your browser site settings and try again.');
         return;
       }
+      
       const result = await requestNotificationPermission();
       setNotifEnabled(result === 'granted');
+
+      // Request OneSignal permission as well if configured
+      if (hasOneSignal && result === 'granted') {
+        await requestPushPermission();
+        const isGranted = await isPushPermissionGranted();
+        setPushEnabled(isGranted);
+      }
     }
   };
 
@@ -790,37 +802,15 @@ function App() {
                 <button
                   id="notif-toggle-btn"
                   onClick={handleToggleNotifications}
-                  title={notifEnabled ? 'Disable notifications' : 'Enable notifications'}
+                  title={(notifEnabled || pushEnabled) ? 'Disable notifications' : 'Enable notifications'}
                   className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-semibold ${
-                    notifEnabled
+                    (notifEnabled || pushEnabled)
                       ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25'
                       : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700'
                   }`}
                 >
-                  {notifEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-                  <span className="hidden sm:inline">{notifEnabled ? 'Notifications On' : 'Notify'}</span>
-                </button>
-              )}
-
-              {/* OneSignal Offline Push Notifications */}
-              {import.meta.env.VITE_ONESIGNAL_APP_ID && (
-                <button
-                  id="push-toggle-btn"
-                  onClick={async () => {
-                    await requestPushPermission();
-                    // isPushPermissionGranted also writes the result to localStorage
-                    const isGranted = await isPushPermissionGranted();
-                    setPushEnabled(isGranted);
-                  }}
-                  title={pushEnabled ? 'Offline push notifications enabled' : 'Enable offline push alerts'}
-                  className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-semibold ${
-                    pushEnabled
-                      ? 'bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25 shadow-md'
-                      : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-blue-300 hover:border-slate-700'
-                  }`}
-                >
-                  <Bell className="w-4 h-4" />
-                  <span className="hidden sm:inline">{pushEnabled ? 'Offline Alerts On' : 'Offline Alerts'}</span>
+                  {(notifEnabled || pushEnabled) ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                  <span className="hidden sm:inline">{(notifEnabled || pushEnabled) ? 'Notifications On' : 'Notify'}</span>
                 </button>
               )}
 

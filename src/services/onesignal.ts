@@ -70,11 +70,16 @@ export const initOneSignal = async () => {
     });
     console.log('[OneSignal] SDK initialized successfully.');
 
-    // Sync the real SDK permission state into localStorage immediately after init.
-    // This handles the case where the user already granted permission in a
-    // previous session — we persist it so the UI shows correctly on next load.
-    const granted = !!OneSignal.Notifications.permission;
-    setCachedPushGranted(granted);
+    // In OneSignal v16, the optedIn state might take a moment to load from IndexedDB.
+    // If we have a native granted permission, we can trust the cache or update to true.
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const isOptedIn = !!OneSignal.User?.PushSubscription?.optedIn || !!OneSignal.Notifications?.permission;
+      if (isOptedIn) {
+        setCachedPushGranted(true);
+      }
+    } else {
+      setCachedPushGranted(false);
+    }
 
     // Keep the cache in sync whenever the permission changes (e.g., user grants
     // or revokes from browser settings while the tab is open).
@@ -108,27 +113,27 @@ export const setOneSignalUser = (
 
     // Set targeting tags
     if (teamId) {
-      await OneSignal.User.addTag('teamId', teamId.toLowerCase());
+      await OneSignal.User.addTags({ teamId: teamId.toLowerCase() });
     } else {
-      await OneSignal.User.removeTag('teamId');
+      await OneSignal.User.removeTags(['teamId']);
     }
 
     if (leagueId) {
-      await OneSignal.User.addTag('leagueId', leagueId.toLowerCase());
+      await OneSignal.User.addTags({ leagueId: leagueId.toLowerCase() });
     } else {
-      await OneSignal.User.removeTag('leagueId');
+      await OneSignal.User.removeTags(['leagueId']);
     }
 
     if (isAdmin) {
-      await OneSignal.User.addTag('role', 'admin');
+      await OneSignal.User.addTags({ role: 'admin' });
     } else {
-      await OneSignal.User.removeTag('role');
+      await OneSignal.User.removeTags(['role']);
     }
 
     if (email) {
-      await OneSignal.User.addTag('email', email);
+      await OneSignal.User.addTags({ email: email });
     } else {
-      await OneSignal.User.removeTag('email');
+      await OneSignal.User.removeTags(['email']);
     }
   });
 };
@@ -160,6 +165,7 @@ export const isPushPermissionGranted = (): Promise<boolean> => {
   return new Promise((resolve) => {
     // If standard browser notifications are not granted, return false immediately
     if ('Notification' in window && Notification.permission !== 'granted') {
+      setCachedPushGranted(false);
       resolve(false);
       return;
     }
@@ -172,9 +178,14 @@ export const isPushPermissionGranted = (): Promise<boolean> => {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push((OneSignal: any) => {
       // Use OneSignal's subscription state or notification permission status
-      const isPushEnabled = OneSignal.Notifications.permission || false;
-      setCachedPushGranted(isPushEnabled);
-      resolve(isPushEnabled);
+      const isPushEnabled = !!OneSignal.User?.PushSubscription?.optedIn || !!OneSignal.Notifications?.permission;
+      
+      // If the browser permission is granted, we consider the UI "push enabled" to prevent flickering,
+      // while OneSignal finishes syncing in the background.
+      const effectivelyEnabled = isPushEnabled || Notification.permission === 'granted';
+      
+      setCachedPushGranted(effectivelyEnabled);
+      resolve(effectivelyEnabled);
     });
   });
 };
