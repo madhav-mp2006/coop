@@ -72,7 +72,7 @@ export interface AppUser {
 // Timeout Helper to prevent WebSocket hangs on wrong configuration
 const withTimeout = <T>(
   promise: Promise<T>, 
-  timeoutMs = 5000, 
+  timeoutMs = 10000, 
   errorMsg = 'Database connection timed out. Please check your network connection or Firebase database URL in .env.'
 ): Promise<T> => {
   return Promise.race([
@@ -120,13 +120,13 @@ if (isFirebaseConfigured && !forceMock) {
     
     // Seed admin credentials into Firestore if not present (wrapped in timeout)
     const adminRef = doc(db, 'config', 'admin_credentials');
-    withTimeout(getDoc(adminRef), 3000)
+    withTimeout(getDoc(adminRef), 10000)
       .then((snapshot) => {
         if (!snapshot.exists()) {
           withTimeout(setDoc(adminRef, {
             email: 'admin@scores.com',
             password: 'adminpassword'
-          }), 3000).catch(err => {
+          }), 10000).catch(err => {
             console.warn("Could not seed admin credentials to Firestore:", err);
           });
         }
@@ -223,7 +223,7 @@ export const signIn = async (email: string, password: string): Promise<AppUser> 
       try {
         // Try to verify against Firestore document with timeout
         const adminRef = doc(db, 'config', 'admin_credentials');
-        const snapshot = await withTimeout(getDoc(adminRef), 3000);
+        const snapshot = await withTimeout(getDoc(adminRef), 10000);
         if (snapshot.exists()) {
           const adminCreds = snapshot.data();
           if (
@@ -238,7 +238,7 @@ export const signIn = async (email: string, password: string): Promise<AppUser> 
           await withTimeout(setDoc(adminRef, {
             email: 'admin@scores.com',
             password: 'adminpassword'
-          }), 3000);
+          }), 10000);
           if (email.toLowerCase() === 'admin@scores.com' && password === 'adminpassword') {
             isValid = true;
           }
@@ -325,7 +325,7 @@ const runDbOperation = async <T>(
 ): Promise<T> => {
   if (useFirebase && db) {
     try {
-      return await withTimeout(firebaseOp(), 3500, `${opName} timed out.`);
+      return await withTimeout(firebaseOp(), 10000, `${opName} timed out.`);
     } catch (err) {
       console.warn(`${opName} failed on Firebase. Automatically falling back to Local Mock Database:`, err);
       useFirebase = false;
@@ -921,4 +921,19 @@ const triggerFixturesListeners = (leagueId: string) => {
 export const seedDemoTournament = async () => {
   // Disabled as per user request to disable seeding
   return;
+};
+
+export const deleteTeam = async (teamId: string) => {
+  return runDbOperation(
+    async () => {
+      await deleteDoc(doc(db!, 'teams', teamId));
+    },
+    async () => {
+      const teams = await getTeams();
+      delete teams[teamId];
+      localStorage.setItem(LS_TEAMS, JSON.stringify(teams));
+      triggerTeamsListeners();
+    },
+    'Delete team'
+  );
 };

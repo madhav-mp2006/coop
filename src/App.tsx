@@ -11,6 +11,7 @@ import {
   saveLeagueSettings,
   saveActiveLeagueId,
   approveOrRejectTeam as firebaseApproveOrRejectTeam,
+  deleteTeam,
   saveFixtures,
   updateMatchScore,
   resetTournament,
@@ -940,13 +941,20 @@ function App() {
       {/* MAIN CONTAINER */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 flex-1 w-full">
         {/* Connection Warning Banner */}
-        {getDatabaseMode() === 'mock' && isFirebaseConfigured && (
-          <div className="mb-6 p-4 bg-amber-950/25 border border-amber-500/25 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-400 text-xs">
+        {getDatabaseMode() === 'mock' && isFirebaseConfigured && localStorage.getItem('scores_hide_mock_warning') !== 'true' && (
+          <div className="mb-6 p-4 bg-amber-950/25 border border-amber-500/25 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-400 text-xs relative pr-8">
+            <button 
+              onClick={() => { localStorage.setItem('scores_hide_mock_warning', 'true'); window.location.reload(); }}
+              className="absolute top-2 right-2 text-amber-500 hover:text-amber-300"
+              title="Dismiss Warning"
+            >
+              ✕
+            </button>
             <div className="flex items-center gap-2.5">
               <span className="p-1.5 bg-amber-500/10 rounded-lg text-amber-400">⚠️</span>
               <span>
                 <strong>Firebase connection unavailable:</strong> Running in self-healing Local Mock mode. 
-                Verify that you have enabled/created a <strong>Realtime Database</strong> instance in your Firebase console for project <strong>efcoop</strong>.
+                Verify that you have enabled/created a <strong>Firestore Database</strong> instance in your Firebase console for project <strong>efcoop</strong>.
               </span>
             </div>
             <button
@@ -1041,6 +1049,7 @@ function App() {
             onSelectActiveLeague={saveActiveLeagueId}
             onReset={handleResetTournament}
             onDeleteLeague={handleDeleteLeague}
+            onDeleteTeam={deleteTeam}
             onUpdateScore={handleUpdateScore}
             onResetMatchScore={handleResetMatchScore}
           />

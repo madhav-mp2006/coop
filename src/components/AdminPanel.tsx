@@ -14,6 +14,7 @@ interface AdminPanelProps {
   onSelectActiveLeague: (id: string | null) => Promise<void>;
   onReset: () => Promise<void>;
   onDeleteLeague: (id: string) => Promise<void>;
+  onDeleteTeam: (teamId: string) => Promise<void>;
   onUpdateScore: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
   onResetMatchScore?: (matchId: string) => Promise<void>;
 }
@@ -30,6 +31,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onSelectActiveLeague,
   onReset,
   onDeleteLeague,
+  onDeleteTeam,
   onUpdateScore,
   onResetMatchScore
 }) => {
@@ -435,12 +437,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             {team.status}
                           </span>
                           {league?.status === 'registration' && (
-                            <button
-                              onClick={() => onApproveTeam(team.id, 'pending')}
-                              className="text-[10px] text-slate-400 hover:text-slate-200 underline"
-                            >
-                              Reconsider
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => onApproveTeam(team.id, 'pending')}
+                                className="text-[10px] text-slate-400 hover:text-slate-200 underline"
+                              >
+                                Reconsider
+                              </button>
+                              {team.status === 'rejected' && (
+                                <button
+                                  onClick={async () => {
+                                    if (window.confirm('Are you sure you want to delete this rejected team permanently?')) {
+                                      await onDeleteTeam(team.id);
+                                    }
+                                  }}
+                                  className="p-1 text-rose-450 hover:text-rose-300 hover:bg-rose-500/10 rounded transition-colors"
+                                  title="Delete Team"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
