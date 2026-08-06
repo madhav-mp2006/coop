@@ -283,9 +283,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
                 >
                   <option value={4}>4 Teams</option>
-                  <option value={6}>6 Teams</option>
                   <option value={8}>8 Teams</option>
-                  <option value={10}>10 Teams</option>
+                  <option value={12}>12 Teams</option>
+                  <option value={16}>16 Teams</option>
+                  <option value={20}>20 Teams</option>
+                  <option value={24}>24 Teams</option>
+                  <option value={28}>28 Teams</option>
+                  <option value={32}>32 Teams</option>
+                  <option value={36}>36 Teams</option>
+                  <option value={40}>40 Teams</option>
+                  <option value={44}>44 Teams</option>
+                  <option value={48}>48 Teams</option>
                 </select>
               </div>
             )}
