@@ -30,6 +30,7 @@ export interface Team {
   players: Player[];
   code?: string;
   flagCode?: string;
+  groupId?: string;
 }
 
 export interface LeagueSettings {
@@ -43,12 +44,13 @@ export interface LeagueSettings {
   currentRound: number;
   totalRounds: number;
   championId?: string | null;
+  tournamentType?: 'round_robin' | 'world_cup';
 }
 
 export interface Match {
   id: string;
   leagueId: string;
-  round: number | 'SF1' | 'SF2' | 'FINAL';
+  round: number | 'R32' | 'R16' | 'QF' | 'SF1' | 'SF2' | 'THIRD_PLACE' | 'FINAL';
   homeTeamId: string;
   awayTeamId: string;
   homeScore: number | null;
@@ -410,7 +412,8 @@ export const saveLeagueSettings = async (leagueId: string, settings: Partial<Lea
         status: 'setup',
         currentRound: 1,
         totalRounds: 0,
-        championId: null
+        championId: null,
+        tournamentType: 'round_robin'
       };
       leagues[leagueId] = { ...current, ...settings } as LeagueSettings;
       localStorage.setItem(LS_LEAGUES, JSON.stringify(leagues));
@@ -698,7 +701,8 @@ export const resetTournament = async (leagueId: string) => {
     status: 'setup',
     currentRound: 1,
     totalRounds: 0,
-    championId: null
+    championId: null,
+    tournamentType: 'round_robin'
   };
 
   return runDbOperation(

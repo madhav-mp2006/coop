@@ -64,6 +64,81 @@ export function generateRoundRobinFixtures(teams: Team[]): Match[] {
   return fixtures.sort((a, b) => (a.round as number) - (b.round as number));
 }
 
+/**
+ * Generates standard Round-Robin group stage fixtures for World Cup (12 groups of 4)
+ */
+export const generateWorldCupGroupFixtures = async (
+  leagueId: string,
+  teams: Record<string, Team>,
+  league: LeagueSettings
+): Promise<Match[]> => {
+  const teamArray = Object.values(teams);
+  if (teamArray.length !== 48) {
+    throw new Error('World Cup format requires exactly 48 teams.');
+  }
+
+  // Shuffle teams
+  const shuffled = [...teamArray].sort(() => 0.5 - Math.random());
+
+  // Divide into 12 groups (A through L)
+  const groupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  const groups: Record<string, Team[]> = {};
+  
+  groupNames.forEach((name, i) => {
+    groups[name] = shuffled.slice(i * 4, i * 4 + 4);
+    // Update team objects with their group ID in the background
+    groups[name].forEach(async (team) => {
+      const teamRef = doc(db, 'teams', team.id);
+      await updateDoc(teamRef, { groupId: name });
+    });
+  });
+
+  const matches: Match[] = [];
+  
+  // For each group, generate 3 rounds of fixtures (Round Robin among 4 teams)
+  groupNames.forEach(group => {
+    const groupTeams = groups[group];
+    
+    // Round 1: 0 vs 1, 2 vs 3
+    matches.push({
+      id: `match-wc-${group}-R1-1`, leagueId, round: 1,
+      homeTeamId: groupTeams[0].id, awayTeamId: groupTeams[1].id,
+      homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false
+    });
+    matches.push({
+      id: `match-wc-${group}-R1-2`, leagueId, round: 1,
+      homeTeamId: groupTeams[2].id, awayTeamId: groupTeams[3].id,
+      homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false
+    });
+
+    // Round 2: 0 vs 2, 3 vs 1
+    matches.push({
+      id: `match-wc-${group}-R2-1`, leagueId, round: 2,
+      homeTeamId: groupTeams[0].id, awayTeamId: groupTeams[2].id,
+      homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false
+    });
+    matches.push({
+      id: `match-wc-${group}-R2-2`, leagueId, round: 2,
+      homeTeamId: groupTeams[3].id, awayTeamId: groupTeams[1].id,
+      homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false
+    });
+
+    // Round 3: 3 vs 0, 1 vs 2
+    matches.push({
+      id: `match-wc-${group}-R3-1`, leagueId, round: 3,
+      homeTeamId: groupTeams[3].id, awayTeamId: groupTeams[0].id,
+      homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false
+    });
+    matches.push({
+      id: `match-wc-${group}-R3-2`, leagueId, round: 3,
+      homeTeamId: groupTeams[1].id, awayTeamId: groupTeams[2].id,
+      homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false
+    });
+  });
+
+  return matches;
+}
+
 export interface StandingRow {
   pos: number;
   teamId: string;
@@ -182,4 +257,40 @@ export function calculateStandings(
     ...row,
     pos: idx + 1
   }));
+}
+
+/**
+ * Calculates standings separated by group.
+ */
+export const calculateGroupStandings = (
+  teams: Record<string, Team>,
+  fixtures: Match[],
+  league: LeagueSettings
+): Record<string, StandingRow[]> => {
+  // Same logic but grouped by A-L
+  const groupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  const groupStandings: Record<string, StandingRow[]> = {};
+
+  groupNames.forEach(group => {
+    // Filter teams in this group
+    const groupTeams: Record<string, Team> = {};
+    Object.values(teams).forEach(team => {
+      if (team.groupId === group && team.leagueId === league.id) {
+        groupTeams[team.id] = team;
+      }
+    });
+
+    // Filter matches involving these teams
+    const groupFixtures = fixtures.filter(m => {
+      const homeTeam = groupTeams[m.homeTeamId];
+      const awayTeam = groupTeams[m.awayTeamId];
+      return homeTeam && awayTeam; // Both teams must be in the group (which they should be)
+    });
+
+    // Calculate standings for just this group
+    const standings = calculateStandings(groupTeams, groupFixtures, league);
+    groupStandings[group] = standings;
+  });
+
+  return groupStandings;
 }

@@ -25,7 +25,7 @@ import {
   resetMatchScore
 } from './services/firebase';
 import type { AppUser, LeagueSettings, Team, Match } from './services/firebase';
-import { generateRoundRobinFixtures, calculateStandings } from './services/db';
+import { generateRoundRobinFixtures, generateWorldCupGroupFixtures, calculateStandings, calculateGroupStandings } from './services/db';
 import type { StandingRow } from './services/db';
 import { Standings } from './components/Standings';
 import { Fixtures } from './components/Fixtures';
@@ -66,6 +66,8 @@ function App() {
   const [activeLeagueId, setActiveLeagueId] = useState<string | null>(null);
   const [league, setLeague] = useState<LeagueSettings | null>(null);
   
+  const [standings, setStandings] = useState<StandingRow[]>([]);
+  const [groupStandings, setGroupStandings] = useState<Record<string, StandingRow[]>>({});
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [fixtures, setFixtures] = useState<Match[]>([]);
 
@@ -78,9 +80,6 @@ function App() {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
-
-  // Live standings cache
-  const [standings, setStandings] = useState<StandingRow[]>([]);
 
   // Notification state
   const [notifEnabled, setNotifEnabled] = useState<boolean>(isNotificationsEnabled());
@@ -245,10 +244,15 @@ function App() {
   // Recalculate standings when teams or fixtures change
   useEffect(() => {
     if (league && teams && fixtures) {
-      const calculated = calculateStandings(teams, fixtures, league);
-      setStandings(calculated);
+      if (league.tournamentType === 'world_cup') {
+        const calcGroups = calculateGroupStandings(teams, fixtures, league);
+        setGroupStandings(calcGroups);
+      } else {
+        const calculated = calculateStandings(teams, fixtures, league);
+        setStandings(calculated);
+      }
     }
-  }, [league, teams, fixtures]);
+  }, [teams, fixtures, league]);
 
   // Auto-switch tabs + notify on league status/round changes
   useEffect(() => {
@@ -469,100 +473,223 @@ function App() {
       const allCompleted = roundMatches.every(m => m.isCompleted);
 
       if (allCompleted) {
-        if (activeRoundNum === currentSettings.totalRounds) {
-          // Last round completed -> Transition to Knockouts
-          const freshStandings = calculateStandings(teams, updatedFixtures, currentSettings);
-          
-          if (freshStandings.length >= 4) {
-            const t1 = freshStandings[0].teamId;
-            const t2 = freshStandings[1].teamId;
-            const t3 = freshStandings[2].teamId;
-            const t4 = freshStandings[3].teamId;
+          if (currentSettings.tournamentType === 'world_cup') {
+            // Check if Round 3 is completed
+            if (activeRoundNum === 3) {
+              const freshGroupStandings = calculateGroupStandings(teams, updatedFixtures, currentSettings);
+              
+              // 1. Gather winners (1st), runners-up (2nd), and 3rd placed
+              const groupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+              let winners: StandingRow[] = [];
+              let runnersUp: StandingRow[] = [];
+              let thirdPlaced: StandingRow[] = [];
 
-            const sf1: Match = {
-              id: 'match-sf-1',
-              leagueId: activeLeagueId,
-              round: 'SF1',
-              homeTeamId: t1,
-              awayTeamId: t4,
-              homeScore: null,
-              awayScore: null,
-              isCompleted: false,
-              submittedBy: null,
-              isDisputed: false
-            };
+              groupNames.forEach(grp => {
+                const standings = freshGroupStandings[grp] || [];
+                if (standings[0]) winners.push(standings[0]);
+                if (standings[1]) runnersUp.push(standings[1]);
+                if (standings[2]) thirdPlaced.push(standings[2]);
+              });
 
-            const sf2: Match = {
-              id: 'match-sf-2',
-              leagueId: activeLeagueId,
-              round: 'SF2',
-              homeTeamId: t2,
-              awayTeamId: t3,
-              homeScore: null,
-              awayScore: null,
-              isCompleted: false,
-              submittedBy: null,
-              isDisputed: false
-            };
+              // 2. Sort 3rd placed to find top 8
+              thirdPlaced.sort((a, b) => {
+                if (b.pts !== a.pts) return b.pts - a.pts;
+                if (b.gd !== a.gd) return b.gd - a.gd;
+                if (b.gf !== a.gf) return b.gf - a.gf;
+                return 0; // fallback
+              });
+              const bestThirdPlaced = thirdPlaced.slice(0, 8);
 
-            const finalMatch: Match = {
-              id: 'match-final',
-              leagueId: activeLeagueId,
-              round: 'FINAL',
-              homeTeamId: 'TBD',
-              awayTeamId: 'TBD',
-              homeScore: null,
-              awayScore: null,
-              isCompleted: false,
-              submittedBy: null,
-              isDisputed: false
-            };
+              // 3. We have 32 teams. We will pair them. 
+              // Simplification: pair 12 winners + top 4 runners-up against the remaining 8 runners-up + 8 third-placed.
+              // Combine and sort pot 1 and pot 2
+              const pot1 = [...winners, ...runnersUp.slice(0, 4)];
+              const pot2 = [...runnersUp.slice(4), ...bestThirdPlaced];
+              
+              // Sort pots by points, GD, GF for seeding
+              const sortFn = (a: StandingRow, b: StandingRow) => {
+                if (b.pts !== a.pts) return b.pts - a.pts;
+                if (b.gd !== a.gd) return b.gd - a.gd;
+                return b.gf - a.gf;
+              };
+              pot1.sort(sortFn);
+              pot2.sort(sortFn);
+              pot2.reverse(); // pair highest pot1 with lowest pot2
 
-            await saveFixtures(activeLeagueId, [...updatedFixtures, sf1, sf2, finalMatch]);
-            await saveLeagueSettings(activeLeagueId, { status: 'knockout' });
-            
-            // Trigger offline push notifications
-            sendFCMNotification(
-              'admins',
-              null,
-              '🏆 Knockout Stage Begins!',
-              'The Group Stage is complete. Semi-final matches are now live!'
-            );
+              const r32Matches: Match[] = [];
+              for (let i = 0; i < 16; i++) {
+                r32Matches.push({
+                  id: `match-r32-${i+1}`, leagueId: activeLeagueId, round: 'R32',
+                  homeTeamId: pot1[i]?.teamId || 'TBD',
+                  awayTeamId: pot2[i]?.teamId || 'TBD',
+                  homeScore: null, awayScore: null,
+                  isCompleted: false, submittedBy: null, isDisputed: false
+                });
+              }
+
+              // Create R16, QF, SF, Third Place and Final placeholders
+              const r16Matches: Match[] = Array.from({ length: 8 }).map((_, i) => ({
+                id: `match-r16-${i+1}`, leagueId: activeLeagueId, round: 'R16',
+                homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null,
+                isCompleted: false, submittedBy: null, isDisputed: false
+              }));
+              const qfMatches: Match[] = Array.from({ length: 4 }).map((_, i) => ({
+                id: `match-qf-${i+1}`, leagueId: activeLeagueId, round: 'QF',
+                homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null,
+                isCompleted: false, submittedBy: null, isDisputed: false
+              }));
+              const sfMatches: Match[] = [
+                { id: 'match-sf-1', leagueId: activeLeagueId, round: 'SF1', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false },
+                { id: 'match-sf-2', leagueId: activeLeagueId, round: 'SF2', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false }
+              ];
+              const thirdPlaceMatch: Match = { id: 'match-third-place', leagueId: activeLeagueId, round: 'THIRD_PLACE', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false };
+              const finalMatch: Match = { id: 'match-final', leagueId: activeLeagueId, round: 'FINAL', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false };
+
+              await saveFixtures(activeLeagueId, [...updatedFixtures, ...r32Matches, ...r16Matches, ...qfMatches, ...sfMatches, thirdPlaceMatch, finalMatch]);
+              await saveLeagueSettings(activeLeagueId, { status: 'knockout' });
+              
+              sendFCMNotification(
+                'admins', null,
+                '🏆 Knockout Stage Begins!',
+                'The Group Stage is complete. Round of 32 matches are now live!'
+              );
+            } else {
+              // Unlock next round by incrementing active round
+              await saveLeagueSettings(activeLeagueId, { currentRound: activeRoundNum + 1 });
+              sendFCMNotification(
+                'admins', null,
+                '🏁 New Round Started',
+                `Tournament "${currentSettings.name}": Round ${activeRoundNum + 1} has started.`
+              );
+            }
           } else {
-            // Not enough teams, finish tournament
-            await saveLeagueSettings(activeLeagueId, { status: 'finished' });
-            
-            // Trigger offline push notifications
-            sendFCMNotification(
-              'admins',
-              null,
-              '🏁 Tournament Finished',
-              `The tournament "${currentSettings.name}" has concluded.`
-            );
+            if (activeRoundNum === currentSettings.totalRounds) {
+              // Last round completed -> Transition to Knockouts
+              const freshStandings = calculateStandings(teams, updatedFixtures, currentSettings);
+              
+              if (freshStandings.length >= 4) {
+                const t1 = freshStandings[0].teamId;
+                const t2 = freshStandings[1].teamId;
+                const t3 = freshStandings[2].teamId;
+                const t4 = freshStandings[3].teamId;
+
+                const sf1: Match = {
+                  id: 'match-sf-1', leagueId: activeLeagueId, round: 'SF1',
+                  homeTeamId: t1, awayTeamId: t4, homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false
+                };
+
+                const sf2: Match = {
+                  id: 'match-sf-2', leagueId: activeLeagueId, round: 'SF2',
+                  homeTeamId: t2, awayTeamId: t3, homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false
+                };
+
+                const finalMatch: Match = {
+                  id: 'match-final', leagueId: activeLeagueId, round: 'FINAL',
+                  homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false
+                };
+
+                await saveFixtures(activeLeagueId, [...updatedFixtures, sf1, sf2, finalMatch]);
+                await saveLeagueSettings(activeLeagueId, { status: 'knockout' });
+                
+                // Trigger offline push notifications
+                sendFCMNotification(
+                  'admins', null,
+                  '🏆 Knockout Stage Begins!',
+                  'The Group Stage is complete. Semi-final matches are now live!'
+                );
+              } else {
+                // Not enough teams, finish tournament
+                await saveLeagueSettings(activeLeagueId, { status: 'finished' });
+                
+                // Trigger offline push notifications
+                sendFCMNotification(
+                  'admins', null,
+                  '🏁 Tournament Finished',
+                  `The tournament "${currentSettings.name}" has concluded.`
+                );
+              }
+            } else {
+              // Unlock next round by incrementing active round
+              await saveLeagueSettings(activeLeagueId, { currentRound: activeRoundNum + 1 });
+              
+              // Trigger offline push notifications for new round
+              sendFCMNotification(
+                'admins', null,
+                '🏁 New Round Started',
+                `Tournament "${currentSettings.name}": Round ${activeRoundNum + 1} has started.`
+              );
+            }
           }
-        } else {
-          // Unlock next round by incrementing active round
-          await saveLeagueSettings(activeLeagueId, { currentRound: activeRoundNum + 1 });
-          
-          // Trigger offline push notifications for new round
-          sendFCMNotification(
-            'admins',
-            null,
-            '🏁 New Round Started',
-            `Tournament "${currentSettings.name}": Round ${activeRoundNum + 1} has started.`
-          );
+      }
+    }
+    // B. Round of 32 Progression
+    else if (updatedFixtures[matchIdx].round === 'R32') {
+      const r32Matches = updatedFixtures.filter(m => m.round === 'R32');
+      if (r32Matches.length === 16 && r32Matches.every(m => m.isCompleted)) {
+        const getWinner = (id: string) => {
+          const m = r32Matches.find(m => m.id === id);
+          return m ? (m.homeScore! > m.awayScore! ? m.homeTeamId : m.awayTeamId) : 'TBD';
+        };
+
+        const r16Matches = updatedFixtures.filter(m => m.round === 'R16');
+        if (r16Matches.length === 8) {
+          for (let i = 0; i < 8; i++) {
+            r16Matches[i].homeTeamId = getWinner(`match-r32-${i * 2 + 1}`);
+            r16Matches[i].awayTeamId = getWinner(`match-r32-${i * 2 + 2}`);
+          }
+          await saveFixtures(activeLeagueId, updatedFixtures);
         }
       }
     }
-    // B. Semi-Finals Progression
+    // C. Round of 16 Progression
+    else if (updatedFixtures[matchIdx].round === 'R16') {
+      const r16Matches = updatedFixtures.filter(m => m.round === 'R16');
+      if (r16Matches.length === 8 && r16Matches.every(m => m.isCompleted)) {
+        const getWinner = (id: string) => {
+          const m = r16Matches.find(m => m.id === id);
+          return m ? (m.homeScore! > m.awayScore! ? m.homeTeamId : m.awayTeamId) : 'TBD';
+        };
+
+        const qfMatches = updatedFixtures.filter(m => m.round === 'QF');
+        if (qfMatches.length === 4) {
+          qfMatches[0].homeTeamId = getWinner('match-r16-1'); qfMatches[0].awayTeamId = getWinner('match-r16-2');
+          qfMatches[1].homeTeamId = getWinner('match-r16-3'); qfMatches[1].awayTeamId = getWinner('match-r16-4');
+          qfMatches[2].homeTeamId = getWinner('match-r16-5'); qfMatches[2].awayTeamId = getWinner('match-r16-6');
+          qfMatches[3].homeTeamId = getWinner('match-r16-7'); qfMatches[3].awayTeamId = getWinner('match-r16-8');
+          await saveFixtures(activeLeagueId, updatedFixtures);
+        }
+      }
+    }
+    // C. Quarter-Finals Progression
+    else if (updatedFixtures[matchIdx].round === 'QF') {
+      const qfMatches = updatedFixtures.filter(m => m.round === 'QF');
+      if (qfMatches.length === 4 && qfMatches.every(m => m.isCompleted)) {
+        const getWinner = (id: string) => {
+          const m = qfMatches.find(m => m.id === id);
+          return m ? (m.homeScore! > m.awayScore! ? m.homeTeamId : m.awayTeamId) : 'TBD';
+        };
+
+        const sf1 = updatedFixtures.find(m => m.round === 'SF1');
+        const sf2 = updatedFixtures.find(m => m.round === 'SF2');
+        if (sf1 && sf2) {
+          sf1.homeTeamId = getWinner('match-qf-1'); sf1.awayTeamId = getWinner('match-qf-2');
+          sf2.homeTeamId = getWinner('match-qf-3'); sf2.awayTeamId = getWinner('match-qf-4');
+          await saveFixtures(activeLeagueId, updatedFixtures);
+        }
+      }
+    }
+    // D. Semi-Finals Progression
     else if (updatedFixtures[matchIdx].round === 'SF1' || updatedFixtures[matchIdx].round === 'SF2') {
       const sf1Match = updatedFixtures.find(m => m.round === 'SF1');
       const sf2Match = updatedFixtures.find(m => m.round === 'SF2');
 
       if (sf1Match && sf2Match && sf1Match.isCompleted && sf2Match.isCompleted) {
-        // Find winners
+        // Find winners and losers
         const sf1Winner = sf1Match.homeScore! > sf1Match.awayScore! ? sf1Match.homeTeamId : sf1Match.awayTeamId;
         const sf2Winner = sf2Match.homeScore! > sf2Match.awayScore! ? sf2Match.homeTeamId : sf2Match.awayTeamId;
+        
+        const sf1Loser = sf1Match.homeScore! < sf1Match.awayScore! ? sf1Match.homeTeamId : sf1Match.awayTeamId;
+        const sf2Loser = sf2Match.homeScore! < sf2Match.awayScore! ? sf2Match.homeTeamId : sf2Match.awayTeamId;
 
         const finalIdx = updatedFixtures.findIndex(m => m.round === 'FINAL');
         if (finalIdx !== -1) {
@@ -571,11 +698,19 @@ function App() {
             homeTeamId: sf1Winner,
             awayTeamId: sf2Winner
           };
-          await saveFixtures(activeLeagueId, updatedFixtures);
         }
+        const thirdPlaceIdx = updatedFixtures.findIndex(m => m.round === 'THIRD_PLACE');
+        if (thirdPlaceIdx !== -1) {
+          updatedFixtures[thirdPlaceIdx] = {
+            ...updatedFixtures[thirdPlaceIdx],
+            homeTeamId: sf1Loser,
+            awayTeamId: sf2Loser
+          };
+        }
+        await saveFixtures(activeLeagueId, updatedFixtures);
       }
     }
-    // C. Grand Final Progression
+    // E. Grand Final Progression
     else if (updatedFixtures[matchIdx].round === 'FINAL') {
       const finalMatch = updatedFixtures[matchIdx];
       const championId = finalMatch.homeScore! > finalMatch.awayScore! ? finalMatch.homeTeamId : finalMatch.awayTeamId;
@@ -674,10 +809,21 @@ function App() {
     const approvedTeams = Object.values(teams).filter(t => t.leagueId === activeLeagueId && t.status === 'approved');
     if (approvedTeams.length !== league.teamCount) return;
 
-    const generatedFixtures = generateRoundRobinFixtures(approvedTeams);
-    
-    const numTeams = approvedTeams.length;
-    const totalRounds = numTeams % 2 === 0 ? numTeams - 1 : numTeams;
+    let generatedFixtures: Match[] = [];
+    let totalRounds = 1;
+
+    if (league.tournamentType === 'world_cup') {
+      const { matches, updatedTeams } = generateWorldCupGroupFixtures(approvedTeams);
+      generatedFixtures = matches;
+      totalRounds = 3;
+      // Update team docs to include groupIds
+      const { updateTeam } = await import('./services/firebase');
+      await Promise.all(updatedTeams.map(t => updateTeam(t.id, t)));
+    } else {
+      generatedFixtures = generateRoundRobinFixtures(approvedTeams);
+      const numTeams = approvedTeams.length;
+      totalRounds = numTeams % 2 === 0 ? numTeams - 1 : numTeams;
+    }
 
     await saveFixtures(activeLeagueId, generatedFixtures);
     await saveLeagueSettings(activeLeagueId, {
@@ -1007,7 +1153,12 @@ function App() {
               </div>
             )}
             {activeLeagueId && league && league.status !== 'setup' && (
-              <Standings standings={standings} teamCountSettings={league.teamCount} />
+              <Standings 
+                standings={standings} 
+                groupStandings={groupStandings} 
+                teamCountSettings={league.teamCount} 
+                tournamentType={league.tournamentType} 
+              />
             )}
           </div>
         )}
@@ -1033,6 +1184,7 @@ function App() {
             onUpdateScore={handleUpdateScore}
             championId={league?.championId}
             onReset={handleResetTournament}
+            tournamentType={league?.tournamentType}
           />
         )}
 

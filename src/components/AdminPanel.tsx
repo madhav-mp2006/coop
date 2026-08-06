@@ -36,6 +36,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onResetMatchScore
 }) => {
   const [leagueName, setLeagueName] = useState('');
+  const [tournamentType, setTournamentType] = useState<'round_robin' | 'world_cup'>('round_robin');
   const [teamCount, setTeamCount] = useState(4);
   const [wPoints, setWPoints] = useState(3);
   const [dPoints, setDPoints] = useState(1);
@@ -117,10 +118,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       const newLeagueId = `league-${Date.now()}`;
       await onCreateLeague(newLeagueId, {
         name: leagueName,
-        teamCount,
+        teamCount: tournamentType === 'world_cup' ? 48 : teamCount,
         wPoints,
         dPoints,
-        lPoints
+        lPoints,
+        tournamentType
       });
       setLeagueName('');
     } catch (err: any) {
@@ -254,19 +256,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Team Slots
+                Tournament Format
               </label>
               <select
-                value={teamCount}
-                onChange={(e) => setTeamCount(parseInt(e.target.value))}
+                value={tournamentType}
+                onChange={(e) => {
+                  const type = e.target.value as 'round_robin' | 'world_cup';
+                  setTournamentType(type);
+                  if (type === 'world_cup') setTeamCount(48);
+                }}
                 className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
               >
-                <option value={4}>4 Teams</option>
-                <option value={6}>6 Teams</option>
-                <option value={8}>8 Teams</option>
-                <option value={10}>10 Teams</option>
+                <option value="round_robin">Round Robin League</option>
+                <option value="world_cup">FIFA World Cup Format (48 Teams)</option>
               </select>
             </div>
+
+            {tournamentType === 'round_robin' && (
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Team Slots
+                </label>
+                <select
+                  value={teamCount}
+                  onChange={(e) => setTeamCount(parseInt(e.target.value))}
+                  className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
+                >
+                  <option value={4}>4 Teams</option>
+                  <option value={6}>6 Teams</option>
+                  <option value={8}>8 Teams</option>
+                  <option value={10}>10 Teams</option>
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">

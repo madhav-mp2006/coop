@@ -9,6 +9,7 @@ interface KnockoutBracketProps {
   onUpdateScore: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
   championId: string | null | undefined;
   onReset: () => Promise<void>;
+  tournamentType?: 'round_robin' | 'world_cup';
 }
 
 export const KnockoutBracket: React.FC<KnockoutBracketProps> = ({
@@ -17,7 +18,8 @@ export const KnockoutBracket: React.FC<KnockoutBracketProps> = ({
   currentUser,
   onUpdateScore,
   championId,
-  onReset
+  onReset,
+  tournamentType
 }) => {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [homeScore, setHomeScore] = useState<string>('');
@@ -27,7 +29,14 @@ export const KnockoutBracket: React.FC<KnockoutBracketProps> = ({
 
   const sf1 = fixtures.find(m => m.round === 'SF1');
   const sf2 = fixtures.find(m => m.round === 'SF2');
+  const thirdPlaceMatch = fixtures.find(m => m.round === 'THIRD_PLACE');
   const finalMatch = fixtures.find(m => m.round === 'FINAL');
+  
+  const r32Matches = Array.from({length: 16}, (_, i) => fixtures.find(m => m.id === `match-r32-${i+1}`));
+  const r16Matches = Array.from({length: 8}, (_, i) => fixtures.find(m => m.id === `match-r16-${i+1}`));
+  const qfMatches = Array.from({length: 4}, (_, i) => fixtures.find(m => m.id === `match-qf-${i+1}`));
+
+  const isWorldCup = tournamentType === 'world_cup';
 
   const startSubmitScore = (match: Match) => {
     setSelectedMatchId(match.id);
@@ -265,65 +274,102 @@ export const KnockoutBracket: React.FC<KnockoutBracketProps> = ({
       )}
 
       {/* Bracket - stacked on mobile, side by side on md+ */}
-      <div className="max-w-4xl mx-auto">
-        {/* Mobile: vertical stack with arrow indicators */}
-        <div className="md:hidden space-y-4">
-          <div className="space-y-4">
-            {renderMatchCard(sf1, 'Semi-Final 1', '1st Place', '4th Place')}
-            {renderMatchCard(sf2, 'Semi-Final 2', '2nd Place', '3rd Place')}
-          </div>
-
-          {/* Down arrow divider */}
-          <div className="flex flex-col items-center py-2 text-slate-700">
-            <ArrowDown className="w-5 h-5 animate-pulse" />
-            <span className="text-[10px] text-slate-600 uppercase font-bold tracking-wider mt-1">Grand Final</span>
-            <ArrowDown className="w-5 h-5 animate-pulse mt-1" />
-          </div>
-
-          <div>
-            {renderMatchCard(finalMatch, 'Grand Final', 'Winner SF1', 'Winner SF2')}
-          </div>
-
-          {/* Trophy Icon */}
-          <div className="flex justify-center pt-2">
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400">
-              <Trophy className="w-7 h-7" />
+      <div className="max-w-7xl mx-auto overflow-x-auto pb-4">
+        {isWorldCup ? (
+          <div className="min-w-max flex gap-6">
+            <div className="space-y-4 w-72">
+              <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4 sticky left-0">Round of 32</h3>
+              {r32Matches.map((m, i) => (
+                 <div key={i}>{renderMatchCard(m, `Round of 32 - Match ${i+1}`, 'TBD', 'TBD')}</div>
+              ))}
+            </div>
+            <div className="space-y-4 w-72 pt-8">
+              <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Round of 16</h3>
+              {r16Matches.map((m, i) => (
+                 <div key={i} className="mb-8">{renderMatchCard(m, `Round of 16 - Match ${i+1}`, 'TBD', 'TBD')}</div>
+              ))}
+            </div>
+            <div className="space-y-4 w-72 pt-24">
+              <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Quarter-Finals</h3>
+              {qfMatches.map((m, i) => (
+                 <div key={i} className="mb-24">{renderMatchCard(m, `Quarter-Final ${i+1}`, 'TBD', 'TBD')}</div>
+              ))}
+            </div>
+            <div className="space-y-4 w-72 pt-48">
+              <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Semi-Finals</h3>
+              <div className="mb-48">{renderMatchCard(sf1, 'Semi-Final 1', 'TBD', 'TBD')}</div>
+              <div>{renderMatchCard(sf2, 'Semi-Final 2', 'TBD', 'TBD')}</div>
+            </div>
+            <div className="space-y-4 w-72 pt-48">
+              <h3 className="text-amber-400 font-bold uppercase text-xs tracking-widest mb-4">Finals</h3>
+              {renderMatchCard(thirdPlaceMatch, 'Third Place Play-off', 'TBD', 'TBD')}
+              <div className="mt-8">
+                {renderMatchCard(finalMatch, 'Grand Final', 'TBD', 'TBD')}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Mobile: vertical stack with arrow indicators */}
+            <div className="md:hidden space-y-4">
+              <div className="space-y-4">
+                {renderMatchCard(sf1, 'Semi-Final 1', '1st Place', '4th Place')}
+                {renderMatchCard(sf2, 'Semi-Final 2', '2nd Place', '3rd Place')}
+              </div>
 
-        {/* Desktop: horizontal bracket */}
-        <div className="hidden md:flex items-center justify-center gap-4 relative">
-          {/* Semi-Finals Column */}
-          <div className="w-[280px] space-y-8 z-10">
-            {renderMatchCard(sf1, 'Semi-Final 1', '1st Place', '4th Place')}
-            {renderMatchCard(sf2, 'Semi-Final 2', '2nd Place', '3rd Place')}
-          </div>
+              {/* Down arrow divider */}
+              <div className="flex flex-col items-center py-2 text-slate-700">
+                <ArrowDown className="w-5 h-5 animate-pulse" />
+                <span className="text-[10px] text-slate-600 uppercase font-bold tracking-wider mt-1">Grand Final</span>
+                <ArrowDown className="w-5 h-5 animate-pulse mt-1" />
+              </div>
 
-          {/* Arrow connectors */}
-          <div className="flex flex-col justify-around min-h-[160px] text-slate-700 px-2">
-            <svg className="w-12 h-24" viewBox="0 0 48 96" fill="none">
-              <path d="M0 24 H24 V72 H0" stroke="#334155" strokeWidth="1.5" fill="none" />
-              <path d="M24 48 H48" stroke="#334155" strokeWidth="1.5" />
-              <polygon points="44,44 48,48 44,52" fill="#334155" />
-            </svg>
-          </div>
+              <div>
+                {renderMatchCard(finalMatch, 'Grand Final', 'Winner SF1', 'Winner SF2')}
+              </div>
 
-          {/* Finals Column */}
-          <div className="w-[280px] z-10">
-            {renderMatchCard(finalMatch, 'Grand Final', 'Winner SF1', 'Winner SF2')}
-          </div>
-
-          {/* Champion trophy icon */}
-          <div className="flex flex-col justify-center items-center text-slate-700 ml-4">
-            <svg width="24" height="24" className="mb-2" viewBox="0 0 24 24" fill="none">
-              <path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="#334155" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400">
-              <Trophy className="w-8 h-8" />
+              {/* Trophy Icon */}
+              <div className="flex justify-center pt-2">
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400">
+                  <Trophy className="w-7 h-7" />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+
+            {/* Desktop: horizontal bracket */}
+            <div className="hidden md:flex items-center justify-center gap-4 relative">
+              {/* Semi-Finals Column */}
+              <div className="w-[280px] space-y-8 z-10">
+                {renderMatchCard(sf1, 'Semi-Final 1', '1st Place', '4th Place')}
+                {renderMatchCard(sf2, 'Semi-Final 2', '2nd Place', '3rd Place')}
+              </div>
+
+              {/* Arrow connectors */}
+              <div className="flex flex-col justify-around min-h-[160px] text-slate-700 px-2">
+                <svg className="w-12 h-24" viewBox="0 0 48 96" fill="none">
+                  <path d="M0 24 H24 V72 H0" stroke="#334155" strokeWidth="1.5" fill="none" />
+                  <path d="M24 48 H48" stroke="#334155" strokeWidth="1.5" />
+                  <polygon points="44,44 48,48 44,52" fill="#334155" />
+                </svg>
+              </div>
+
+              {/* Finals Column */}
+              <div className="w-[280px] z-10">
+                {renderMatchCard(finalMatch, 'Grand Final', 'Winner SF1', 'Winner SF2')}
+              </div>
+
+              {/* Champion trophy icon */}
+              <div className="flex flex-col justify-center items-center text-slate-700 ml-4">
+                <svg width="24" height="24" className="mb-2" viewBox="0 0 24 24" fill="none">
+                  <path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="#334155" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400">
+                  <Trophy className="w-8 h-8" />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
