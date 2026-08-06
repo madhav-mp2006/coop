@@ -244,12 +244,14 @@ function App() {
   // Recalculate standings when teams or fixtures change
   useEffect(() => {
     if (league && teams && fixtures) {
+      const calculated = calculateStandings(teams, fixtures, league);
+      setStandings(calculated);
+
       if (league.tournamentType === 'world_cup') {
         const calcGroups = calculateGroupStandings(teams, fixtures, league);
         setGroupStandings(calcGroups);
       } else {
-        const calculated = calculateStandings(teams, fixtures, league);
-        setStandings(calculated);
+        setGroupStandings({});
       }
     }
   }, [teams, fixtures, league]);
@@ -1277,6 +1279,7 @@ function App() {
             teams={teams}
             fixtures={fixtures}
             standings={standings}
+            groupStandings={groupStandings}
             onRegisterTeam={async (name, color, player, flagCode) => {
               if (!activeLeagueId) throw new Error('No active league.');
               const result = await handlePublicCreateTeam(activeLeagueId, name, color, player, flagCode);

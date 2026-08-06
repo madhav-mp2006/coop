@@ -29,6 +29,7 @@ interface TeamRegistrationProps {
   onJoinTeam: (code: string, player: Player) => Promise<{ teamId: string, code: string }>;
   onUpdateScore?: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
   onSaveRoomCode?: (matchId: string, code: string) => Promise<void>;
+  groupStandings?: Record<string, StandingRow[]>;
 }
 
 
@@ -43,6 +44,7 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
   onJoinTeam,
   onUpdateScore,
   onSaveRoomCode,
+  groupStandings = {},
 }) => {
   // Portal Navigation tab: 'create' | 'join' | 'access'
   const [activePortalTab, setActivePortalTab] = useState<'create' | 'join' | 'access'>('create');
@@ -349,13 +351,19 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
 
   const isRegistrationClosed = league ? league.status !== 'registration' : true;
 
+  // For World Cup, use the specific group standings for this team, otherwise use global standings
+  const isWorldCup = league?.tournamentType === 'world_cup';
+  const displayStandings = isWorldCup && myTeam?.groupId && groupStandings[myTeam.groupId]
+    ? groupStandings[myTeam.groupId]
+    : standings;
+
   // Filter standing row specifically for myTeam
   const myStanding = myTeam
-    ? standings.find(row => row.teamId === myTeam.id)
+    ? displayStandings.find((row: any) => row.teamId === myTeam.id)
     : null;
 
   // Filter approved teams only (for points table display)
-  const approvedStandings = standings.filter(row => {
+  const approvedStandings = displayStandings.filter((row: any) => {
     const teamObj = teams[row.teamId];
     return teamObj && teamObj.status === 'approved';
   });
@@ -512,7 +520,7 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
             <div className="md:col-span-1 glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800">
               <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-1.5 border-b border-slate-850 pb-2">
                 <Trophy className="w-4 h-4 text-emerald-400" />
-                <span>League Points Table</span>
+                <span>{isWorldCup && myTeam?.groupId ? `Group ${myTeam.groupId} Standings` : 'League Points Table'}</span>
               </h3>
 
               {approvedStandings.length === 0 ? (
