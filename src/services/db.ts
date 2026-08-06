@@ -67,12 +67,11 @@ export function generateRoundRobinFixtures(teams: Team[]): Match[] {
 /**
  * Generates standard Round-Robin group stage fixtures for World Cup (12 groups of 4)
  */
-export const generateWorldCupGroupFixtures = async (
+export const generateWorldCupGroupFixtures = (
+  teamArray: Team[],
   leagueId: string,
-  teams: Record<string, Team>,
   league: LeagueSettings
-): Promise<Match[]> => {
-  const teamArray = Object.values(teams);
+): { matches: Match[], updatedTeams: Team[] } => {
   if (![16, 32, 48].includes(league.teamCount)) {
     throw new Error('World Cup format requires 16, 32, or 48 teams.');
   }
@@ -85,13 +84,14 @@ export const generateWorldCupGroupFixtures = async (
   const numGroups = league.teamCount / 4;
   const groupNames = allGroupNames.slice(0, numGroups);
   const groups: Record<string, Team[]> = {};
+  const updatedTeams: Team[] = [];
   
   groupNames.forEach((name, i) => {
     groups[name] = shuffled.slice(i * 4, i * 4 + 4);
-    // Update team objects with their group ID in the background
-    groups[name].forEach(async (team) => {
-      const teamRef = doc(db, 'teams', team.id);
-      await updateDoc(teamRef, { groupId: name });
+    // Assign group ID to each team
+    groups[name].forEach((team) => {
+      team.groupId = name;
+      updatedTeams.push(team);
     });
   });
 
@@ -138,7 +138,7 @@ export const generateWorldCupGroupFixtures = async (
     });
   });
 
-  return matches;
+  return { matches, updatedTeams };
 }
 
 export interface StandingRow {

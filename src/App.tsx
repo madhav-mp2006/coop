@@ -876,12 +876,12 @@ function App() {
     let totalRounds = 1;
 
     if (league.tournamentType === 'world_cup') {
-      const { matches, updatedTeams } = generateWorldCupGroupFixtures(approvedTeams);
+      const { matches, updatedTeams } = generateWorldCupGroupFixtures(approvedTeams, activeLeagueId, league);
       generatedFixtures = matches;
       totalRounds = 3;
       // Update team docs to include groupIds
       const { updateTeam } = await import('./services/firebase');
-      await Promise.all(updatedTeams.map(t => updateTeam(t.id, t)));
+      await Promise.all(updatedTeams.map((t: any) => updateTeam(t.id, t)));
     } else {
       generatedFixtures = generateRoundRobinFixtures(approvedTeams);
       const numTeams = approvedTeams.length;
