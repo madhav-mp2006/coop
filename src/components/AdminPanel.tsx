@@ -118,7 +118,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       const newLeagueId = `league-${Date.now()}`;
       await onCreateLeague(newLeagueId, {
         name: leagueName,
-        teamCount: tournamentType === 'world_cup' ? 48 : teamCount,
+        teamCount: teamCount,
         wPoints,
         dPoints,
         lPoints,
@@ -268,7 +268,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
               >
                 <option value="round_robin">Round Robin League</option>
-                <option value="world_cup">FIFA World Cup Format (48 Teams)</option>
+                <option value="world_cup">FIFA World Cup Format</option>
               </select>
             </div>
 
@@ -286,6 +286,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <option value={6}>6 Teams</option>
                   <option value={8}>8 Teams</option>
                   <option value={10}>10 Teams</option>
+                </select>
+              </div>
+            )}
+
+            {tournamentType === 'world_cup' && (
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Team Slots
+                </label>
+                <select
+                  value={teamCount}
+                  onChange={(e) => setTeamCount(parseInt(e.target.value))}
+                  className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
+                >
+                  <option value={16}>16 Teams (Starts at QF)</option>
+                  <option value={32}>32 Teams (Starts at R16)</option>
+                  <option value={48}>48 Teams (Starts at R32)</option>
                 </select>
               </div>
             )}

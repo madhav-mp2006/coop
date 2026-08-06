@@ -73,15 +73,17 @@ export const generateWorldCupGroupFixtures = async (
   league: LeagueSettings
 ): Promise<Match[]> => {
   const teamArray = Object.values(teams);
-  if (teamArray.length !== 48) {
-    throw new Error('World Cup format requires exactly 48 teams.');
+  if (![16, 32, 48].includes(league.teamCount)) {
+    throw new Error('World Cup format requires 16, 32, or 48 teams.');
   }
 
   // Shuffle teams
   const shuffled = [...teamArray].sort(() => 0.5 - Math.random());
 
-  // Divide into 12 groups (A through L)
-  const groupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  // Divide into groups
+  const allGroupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  const numGroups = league.teamCount / 4;
+  const groupNames = allGroupNames.slice(0, numGroups);
   const groups: Record<string, Team[]> = {};
   
   groupNames.forEach((name, i) => {
@@ -267,8 +269,9 @@ export const calculateGroupStandings = (
   fixtures: Match[],
   league: LeagueSettings
 ): Record<string, StandingRow[]> => {
-  // Same logic but grouped by A-L
-  const groupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  const allGroupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  const numGroups = league.teamCount / 4;
+  const groupNames = allGroupNames.slice(0, numGroups);
   const groupStandings: Record<string, StandingRow[]> = {};
 
   groupNames.forEach(group => {

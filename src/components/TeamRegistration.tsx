@@ -17,6 +17,7 @@ import {
   Gamepad2,
   Clock
 } from 'lucide-react';
+import { WORLD_CUP_TEAMS } from '../utils/worldCupTeams';
 
 interface TeamRegistrationProps {
   league: LeagueSettings | null;
@@ -30,56 +31,7 @@ interface TeamRegistrationProps {
   onSaveRoomCode?: (matchId: string, code: string) => Promise<void>;
 }
 
-export const FIFA_2026_TEAMS = [
-  { name: 'Argentina', flagCode: 'AR', color: '#75aadb' },
-  { name: 'Australia', flagCode: 'AU', color: '#00008b' },
-  { name: 'Austria', flagCode: 'AT', color: '#e30b5d' },
-  { name: 'Belgium', flagCode: 'BE', color: '#e11b22' },
-  { name: 'Bosnia and Herzegovina', flagCode: 'BA', color: '#002fbe' },
-  { name: 'Brazil', flagCode: 'BR', color: '#fedf00' },
-  { name: 'Cameroon', flagCode: 'CM', color: '#007a5e' },
-  { name: 'Canada', flagCode: 'CA', color: '#ff0000' },
-  { name: 'Chile', flagCode: 'CL', color: '#0039a6' },
-  { name: 'Colombia', flagCode: 'CO', color: '#fcd116' },
-  { name: 'Costa Rica', flagCode: 'CR', color: '#002f6c' },
-  { name: 'Ivory Coast', flagCode: 'CI', color: '#ff8200' },
-  { name: 'Croatia', flagCode: 'HR', color: '#ff0000' },
-  { name: 'Czech Republic', flagCode: 'CZ', color: '#11457e' },
-  { name: 'Denmark', flagCode: 'DK', color: '#c60c30' },
-  { name: 'Ecuador', flagCode: 'EC', color: '#fcd116' },
-  { name: 'Egypt', flagCode: 'EG', color: '#c0930c' },
-  { name: 'England', flagCode: 'GB-ENG', color: '#ffffff' },
-  { name: 'France', flagCode: 'FR', color: '#002395' },
-  { name: 'Germany', flagCode: 'DE', color: '#000000' },
-  { name: 'Ghana', flagCode: 'GH', color: '#fcd116' },
-  { name: 'Iran', flagCode: 'IR', color: '#239f40' },
-  { name: 'Iraq', flagCode: 'IQ', color: '#007a3d' },
-  { name: 'Italy', flagCode: 'IT', color: '#0064aa' },
-  { name: 'Jamaica', flagCode: 'JM', color: '#009b3a' },
-  { name: 'Japan', flagCode: 'JP', color: '#00008b' },
-  { name: 'Korea Republic', flagCode: 'KR', color: '#ff0000' },
-  { name: 'Mexico', flagCode: 'MX', color: '#006341' },
-  { name: 'Morocco', flagCode: 'MA', color: '#c1272d' },
-  { name: 'Netherlands', flagCode: 'NL', color: '#ff6600' },
-  { name: 'New Zealand', flagCode: 'NZ', color: '#ffffff' },
-  { name: 'Panama', flagCode: 'PA', color: '#da121a' },
-  { name: 'Peru', flagCode: 'PE', color: '#d91414' },
-  { name: 'Poland', flagCode: 'PL', color: '#dc143c' },
-  { name: 'Portugal', flagCode: 'PT', color: '#ff0000' },
-  { name: 'Qatar', flagCode: 'QA', color: '#8a1538' },
-  { name: 'Saudi Arabia', flagCode: 'SA', color: '#006c35' },
-  { name: 'Senegal', flagCode: 'SN', color: '#00853f' },
-  { name: 'South Africa', flagCode: 'ZA', color: '#007a4d' },
-  { name: 'Spain', flagCode: 'ES', color: '#c60b1e' },
-  { name: 'Sweden', flagCode: 'SE', color: '#006aa7' },
-  { name: 'Switzerland', flagCode: 'CH', color: '#da291c' },
-  { name: 'Tunisia', flagCode: 'TN', color: '#e70013' },
-  { name: 'Turkey', flagCode: 'TR', color: '#e30a17' },
-  { name: 'Ukraine', flagCode: 'UA', color: '#ffd500' },
-  { name: 'United States', flagCode: 'US', color: '#3c3b6e' },
-  { name: 'Uruguay', flagCode: 'UY', color: '#0081c8' },
-  { name: 'Uzbekistan', flagCode: 'UZ', color: '#00b5e2' }
-];
+
 
 export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
   league,
@@ -99,9 +51,9 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
   const [myTeamCode, setMyTeamCode] = useState<string | null>(null);
   
   // Create Team States
-  const [teamName, setTeamName] = useState(FIFA_2026_TEAMS[0].name);
-  const [selectedColor, setSelectedColor] = useState(FIFA_2026_TEAMS[0].color);
-  const [selectedFlagCode, setSelectedFlagCode] = useState(FIFA_2026_TEAMS[0].flagCode);
+  const [teamName, setTeamName] = useState('');
+  const [selectedColor, setSelectedColor] = useState('#10b981');
+  const [selectedFlagCode, setSelectedFlagCode] = useState('');
   const [p1Name, setP1Name] = useState('');
 
   // Join Team States
@@ -145,7 +97,24 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
     }
     setError(null);
     setSuccess(null);
-  }, [activeLeagueId]);
+
+    // Auto-select first available team if World Cup
+    if (league?.tournamentType === 'world_cup') {
+      const activeTeams = Object.values(teams).filter(t => t.leagueId === activeLeagueId);
+      const registeredNames = new Set(activeTeams.map(t => t.name));
+      const firstAvailable = WORLD_CUP_TEAMS.find(t => !registeredNames.has(t.name));
+      
+      if (firstAvailable) {
+        setTeamName(firstAvailable.name);
+        setSelectedColor(firstAvailable.color);
+        setSelectedFlagCode(firstAvailable.flagCode);
+      }
+    } else {
+      setTeamName('');
+      setSelectedColor('#10b981');
+      setSelectedFlagCode('');
+    }
+  }, [activeLeagueId, league, teams]);
 
   // Sync selectedDashboardRound with league status/currentRound
   useEffect(() => {
@@ -205,9 +174,9 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
       localStorage.setItem('scores_my_team_code', result.code.toUpperCase());
       setMyTeamCode(result.code.toUpperCase());
       setSuccess(`Team "${teamName}" created successfully! Code: ${result.code}`);
-      setTeamName(FIFA_2026_TEAMS[0].name);
-      setSelectedColor(FIFA_2026_TEAMS[0].color);
-      setSelectedFlagCode(FIFA_2026_TEAMS[0].flagCode);
+      setTeamName('');
+      setSelectedColor('#10b981');
+      setSelectedFlagCode('');
       setP1Name('');
     } catch (err: any) {
       setError(err.message || 'Failed to register team.');
@@ -1023,44 +992,78 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                         <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-1">
                           Team Name
                         </label>
-                        <select
-                          value={teamName}
-                          onChange={(e) => {
-                            const selected = FIFA_2026_TEAMS.find(t => t.name === e.target.value);
-                            if (selected) {
-                              setTeamName(selected.name);
-                              setSelectedColor(selected.color);
-                              setSelectedFlagCode(selected.flagCode);
-                            }
-                          }}
-                          className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none cursor-pointer"
-                        >
-                          {FIFA_2026_TEAMS.map((t) => (
-                            <option key={t.flagCode} value={t.name}>
-                              {t.name}
-                            </option>
-                          ))}
-                        </select>
+                        {league?.tournamentType === 'world_cup' ? (
+                          <select
+                            value={teamName}
+                            onChange={(e) => {
+                              const selected = WORLD_CUP_TEAMS.find(t => t.name === e.target.value);
+                              if (selected) {
+                                setTeamName(selected.name);
+                                setSelectedColor(selected.color);
+                                setSelectedFlagCode(selected.flagCode);
+                              }
+                            }}
+                            className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none cursor-pointer"
+                          >
+                            {WORLD_CUP_TEAMS.map((t) => {
+                              const isRegistered = leagueTeams.some(leagueTeam => leagueTeam.name === t.name);
+                              return (
+                                <option key={t.flagCode} value={t.name} disabled={isRegistered}>
+                                  {t.name} {isRegistered ? '(Taken)' : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder="e.g. Manchester City"
+                            value={teamName}
+                            onChange={(e) => setTeamName(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-850 rounded px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                          />
+                        )}
                       </div>
                       <div className="col-span-2 sm:col-span-1">
                         <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-1">
-                          Team Logo
+                          Team Logo/Color
                         </label>
-                        <div className="flex items-center gap-3 h-9 px-3 bg-slate-950/60 border border-slate-850 rounded-xl">
-                          <img
-                            src={`https://flagcdn.com/w40/${selectedFlagCode.toLowerCase()}.png`}
-                            className="w-7 h-5 object-cover rounded shadow-md border border-slate-900/30"
-                            alt="Selected Flag"
-                          />
-                          <span 
-                            className="w-3 h-3 rounded-full border border-slate-900"
-                            style={{ backgroundColor: selectedColor }}
-                            title="Primary Color"
-                          />
-                          <span className="text-[11px] text-slate-400 font-medium">
-                            {teamName}
-                          </span>
-                        </div>
+                        {league?.tournamentType === 'world_cup' ? (
+                          <div className="flex items-center gap-3 h-9 px-3 bg-slate-950/60 border border-slate-850 rounded-xl">
+                            {selectedFlagCode && (
+                              <img
+                                src={`https://flagcdn.com/w40/${selectedFlagCode.toLowerCase()}.png`}
+                                className="w-7 h-5 object-cover rounded shadow-md border border-slate-900/30"
+                                alt="Selected Flag"
+                              />
+                            )}
+                            <span 
+                              className="w-3 h-3 rounded-full border border-slate-900"
+                              style={{ backgroundColor: selectedColor }}
+                              title="Primary Color"
+                            />
+                            <span className="text-[11px] text-slate-400 font-medium">
+                              {teamName || 'Select a team'}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 h-9">
+                            <input
+                              type="color"
+                              value={selectedColor}
+                              onChange={(e) => setSelectedColor(e.target.value)}
+                              className="w-8 h-8 rounded cursor-pointer border border-slate-800 bg-slate-950 p-0 hover:border-emerald-500 transition-colors"
+                              title="Select team color"
+                            />
+                            <div className="flex-1 bg-slate-950/60 border border-slate-850 rounded px-2.5 h-full flex items-center">
+                              <span 
+                                className="w-2 h-2 rounded-full mr-2 shadow-sm"
+                                style={{ backgroundColor: selectedColor }}
+                              />
+                              <span className="text-slate-400 text-[10px] font-mono">{selectedColor.toUpperCase()}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 

@@ -479,7 +479,10 @@ function App() {
               const freshGroupStandings = calculateGroupStandings(teams, updatedFixtures, currentSettings);
               
               // 1. Gather winners (1st), runners-up (2nd), and 3rd placed
-              const groupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+              const allGroupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+              const numGroups = currentSettings.teamCount / 4;
+              const groupNames = allGroupNames.slice(0, numGroups);
+              
               let winners: StandingRow[] = [];
               let runnersUp: StandingRow[] = [];
               let thirdPlaced: StandingRow[] = [];
@@ -491,53 +494,7 @@ function App() {
                 if (standings[2]) thirdPlaced.push(standings[2]);
               });
 
-              // 2. Sort 3rd placed to find top 8
-              thirdPlaced.sort((a, b) => {
-                if (b.pts !== a.pts) return b.pts - a.pts;
-                if (b.gd !== a.gd) return b.gd - a.gd;
-                if (b.gf !== a.gf) return b.gf - a.gf;
-                return 0; // fallback
-              });
-              const bestThirdPlaced = thirdPlaced.slice(0, 8);
-
-              // 3. We have 32 teams. We will pair them. 
-              // Simplification: pair 12 winners + top 4 runners-up against the remaining 8 runners-up + 8 third-placed.
-              // Combine and sort pot 1 and pot 2
-              const pot1 = [...winners, ...runnersUp.slice(0, 4)];
-              const pot2 = [...runnersUp.slice(4), ...bestThirdPlaced];
-              
-              // Sort pots by points, GD, GF for seeding
-              const sortFn = (a: StandingRow, b: StandingRow) => {
-                if (b.pts !== a.pts) return b.pts - a.pts;
-                if (b.gd !== a.gd) return b.gd - a.gd;
-                return b.gf - a.gf;
-              };
-              pot1.sort(sortFn);
-              pot2.sort(sortFn);
-              pot2.reverse(); // pair highest pot1 with lowest pot2
-
-              const r32Matches: Match[] = [];
-              for (let i = 0; i < 16; i++) {
-                r32Matches.push({
-                  id: `match-r32-${i+1}`, leagueId: activeLeagueId, round: 'R32',
-                  homeTeamId: pot1[i]?.teamId || 'TBD',
-                  awayTeamId: pot2[i]?.teamId || 'TBD',
-                  homeScore: null, awayScore: null,
-                  isCompleted: false, submittedBy: null, isDisputed: false
-                });
-              }
-
-              // Create R16, QF, SF, Third Place and Final placeholders
-              const r16Matches: Match[] = Array.from({ length: 8 }).map((_, i) => ({
-                id: `match-r16-${i+1}`, leagueId: activeLeagueId, round: 'R16',
-                homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null,
-                isCompleted: false, submittedBy: null, isDisputed: false
-              }));
-              const qfMatches: Match[] = Array.from({ length: 4 }).map((_, i) => ({
-                id: `match-qf-${i+1}`, leagueId: activeLeagueId, round: 'QF',
-                homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null,
-                isCompleted: false, submittedBy: null, isDisputed: false
-              }));
+              // Common placeholders
               const sfMatches: Match[] = [
                 { id: 'match-sf-1', leagueId: activeLeagueId, round: 'SF1', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false },
                 { id: 'match-sf-2', leagueId: activeLeagueId, round: 'SF2', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false }
@@ -545,13 +502,119 @@ function App() {
               const thirdPlaceMatch: Match = { id: 'match-third-place', leagueId: activeLeagueId, round: 'THIRD_PLACE', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false };
               const finalMatch: Match = { id: 'match-final', leagueId: activeLeagueId, round: 'FINAL', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false };
 
-              await saveFixtures(activeLeagueId, [...updatedFixtures, ...r32Matches, ...r16Matches, ...qfMatches, ...sfMatches, thirdPlaceMatch, finalMatch]);
+              let newFixtures: Match[] = [];
+              let notificationMsg = '';
+
+              if (currentSettings.teamCount === 48) {
+                // 48 Teams -> R32
+                thirdPlaced.sort((a, b) => {
+                  if (b.pts !== a.pts) return b.pts - a.pts;
+                  if (b.gd !== a.gd) return b.gd - a.gd;
+                  if (b.gf !== a.gf) return b.gf - a.gf;
+                  return 0; // fallback
+                });
+                const bestThirdPlaced = thirdPlaced.slice(0, 8);
+
+                const pot1 = [...winners, ...runnersUp.slice(0, 4)];
+                const pot2 = [...runnersUp.slice(4), ...bestThirdPlaced];
+                
+                const sortFn = (a: StandingRow, b: StandingRow) => {
+                  if (b.pts !== a.pts) return b.pts - a.pts;
+                  if (b.gd !== a.gd) return b.gd - a.gd;
+                  return b.gf - a.gf;
+                };
+                pot1.sort(sortFn);
+                pot2.sort(sortFn);
+                pot2.reverse();
+
+                const r32Matches: Match[] = [];
+                for (let i = 0; i < 16; i++) {
+                  r32Matches.push({
+                    id: `match-r32-${i+1}`, leagueId: activeLeagueId, round: 'R32',
+                    homeTeamId: pot1[i]?.teamId || 'TBD',
+                    awayTeamId: pot2[i]?.teamId || 'TBD',
+                    homeScore: null, awayScore: null,
+                    isCompleted: false, submittedBy: null, isDisputed: false
+                  });
+                }
+                const r16Matches: Match[] = Array.from({ length: 8 }).map((_, i) => ({
+                  id: `match-r16-${i+1}`, leagueId: activeLeagueId, round: 'R16',
+                  homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null,
+                  isCompleted: false, submittedBy: null, isDisputed: false
+                }));
+                const qfMatches: Match[] = Array.from({ length: 4 }).map((_, i) => ({
+                  id: `match-qf-${i+1}`, leagueId: activeLeagueId, round: 'QF',
+                  homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null,
+                  isCompleted: false, submittedBy: null, isDisputed: false
+                }));
+                newFixtures = [...r32Matches, ...r16Matches, ...qfMatches, ...sfMatches, thirdPlaceMatch, finalMatch];
+                notificationMsg = 'The Group Stage is complete. Round of 32 matches are now live!';
+              } else if (currentSettings.teamCount === 32) {
+                // 32 Teams -> R16
+                const pot1 = [...winners];
+                const pot2 = [...runnersUp];
+                
+                const sortFn = (a: StandingRow, b: StandingRow) => {
+                  if (b.pts !== a.pts) return b.pts - a.pts;
+                  if (b.gd !== a.gd) return b.gd - a.gd;
+                  return b.gf - a.gf;
+                };
+                pot1.sort(sortFn);
+                pot2.sort(sortFn);
+                pot2.reverse();
+
+                const r16Matches: Match[] = [];
+                for (let i = 0; i < 8; i++) {
+                  r16Matches.push({
+                    id: `match-r16-${i+1}`, leagueId: activeLeagueId, round: 'R16',
+                    homeTeamId: pot1[i]?.teamId || 'TBD',
+                    awayTeamId: pot2[i]?.teamId || 'TBD',
+                    homeScore: null, awayScore: null,
+                    isCompleted: false, submittedBy: null, isDisputed: false
+                  });
+                }
+                const qfMatches: Match[] = Array.from({ length: 4 }).map((_, i) => ({
+                  id: `match-qf-${i+1}`, leagueId: activeLeagueId, round: 'QF',
+                  homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null,
+                  isCompleted: false, submittedBy: null, isDisputed: false
+                }));
+                newFixtures = [...r16Matches, ...qfMatches, ...sfMatches, thirdPlaceMatch, finalMatch];
+                notificationMsg = 'The Group Stage is complete. Round of 16 matches are now live!';
+              } else if (currentSettings.teamCount === 16) {
+                // 16 Teams -> QF
+                const pot1 = [...winners];
+                const pot2 = [...runnersUp];
+                
+                const sortFn = (a: StandingRow, b: StandingRow) => {
+                  if (b.pts !== a.pts) return b.pts - a.pts;
+                  if (b.gd !== a.gd) return b.gd - a.gd;
+                  return b.gf - a.gf;
+                };
+                pot1.sort(sortFn);
+                pot2.sort(sortFn);
+                pot2.reverse();
+
+                const qfMatches: Match[] = [];
+                for (let i = 0; i < 4; i++) {
+                  qfMatches.push({
+                    id: `match-qf-${i+1}`, leagueId: activeLeagueId, round: 'QF',
+                    homeTeamId: pot1[i]?.teamId || 'TBD',
+                    awayTeamId: pot2[i]?.teamId || 'TBD',
+                    homeScore: null, awayScore: null,
+                    isCompleted: false, submittedBy: null, isDisputed: false
+                  });
+                }
+                newFixtures = [...qfMatches, ...sfMatches, thirdPlaceMatch, finalMatch];
+                notificationMsg = 'The Group Stage is complete. Quarter-Final matches are now live!';
+              }
+
+              await saveFixtures(activeLeagueId, [...updatedFixtures, ...newFixtures]);
               await saveLeagueSettings(activeLeagueId, { status: 'knockout' });
               
               sendFCMNotification(
                 'admins', null,
                 '🏆 Knockout Stage Begins!',
-                'The Group Stage is complete. Round of 32 matches are now live!'
+                notificationMsg
               );
             } else {
               // Unlock next round by incrementing active round

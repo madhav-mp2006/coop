@@ -277,30 +277,36 @@ export const KnockoutBracket: React.FC<KnockoutBracketProps> = ({
       <div className="max-w-7xl mx-auto overflow-x-auto pb-4">
         {isWorldCup ? (
           <div className="min-w-max flex gap-6">
-            <div className="space-y-4 w-72">
-              <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4 sticky left-0">Round of 32</h3>
-              {r32Matches.map((m, i) => (
-                 <div key={i}>{renderMatchCard(m, `Round of 32 - Match ${i+1}`, 'TBD', 'TBD')}</div>
-              ))}
-            </div>
-            <div className="space-y-4 w-72 pt-8">
-              <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Round of 16</h3>
-              {r16Matches.map((m, i) => (
-                 <div key={i} className="mb-8">{renderMatchCard(m, `Round of 16 - Match ${i+1}`, 'TBD', 'TBD')}</div>
-              ))}
-            </div>
-            <div className="space-y-4 w-72 pt-24">
-              <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Quarter-Finals</h3>
-              {qfMatches.map((m, i) => (
-                 <div key={i} className="mb-24">{renderMatchCard(m, `Quarter-Final ${i+1}`, 'TBD', 'TBD')}</div>
-              ))}
-            </div>
-            <div className="space-y-4 w-72 pt-48">
+            {r32Matches.some(m => !!m) && (
+              <div className="space-y-4 w-72">
+                <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4 sticky left-0">Round of 32</h3>
+                {r32Matches.map((m, i) => (
+                   <div key={i}>{renderMatchCard(m, `Round of 32 - Match ${i+1}`, 'TBD', 'TBD')}</div>
+                ))}
+              </div>
+            )}
+            {r16Matches.some(m => !!m) && (
+              <div className={`space-y-4 w-72 ${r32Matches.some(m => !!m) ? 'pt-8' : ''}`}>
+                <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Round of 16</h3>
+                {r16Matches.map((m, i) => (
+                   <div key={i} className="mb-8">{renderMatchCard(m, `Round of 16 - Match ${i+1}`, 'TBD', 'TBD')}</div>
+                ))}
+              </div>
+            )}
+            {qfMatches.some(m => !!m) && (
+              <div className={`space-y-4 w-72 ${r16Matches.some(m => !!m) ? 'pt-24' : ''}`}>
+                <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Quarter-Finals</h3>
+                {qfMatches.map((m, i) => (
+                   <div key={i} className="mb-24">{renderMatchCard(m, `Quarter-Final ${i+1}`, 'TBD', 'TBD')}</div>
+                ))}
+              </div>
+            )}
+            <div className={`space-y-4 w-72 ${qfMatches.some(m => !!m) ? 'pt-48' : ''}`}>
               <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Semi-Finals</h3>
               <div className="mb-48">{renderMatchCard(sf1, 'Semi-Final 1', 'TBD', 'TBD')}</div>
               <div>{renderMatchCard(sf2, 'Semi-Final 2', 'TBD', 'TBD')}</div>
             </div>
-            <div className="space-y-4 w-72 pt-48">
+            <div className={`space-y-4 w-72 ${qfMatches.some(m => !!m) ? 'pt-48' : ''}`}>
               <h3 className="text-amber-400 font-bold uppercase text-xs tracking-widest mb-4">Finals</h3>
               {renderMatchCard(thirdPlaceMatch, 'Third Place Play-off', 'TBD', 'TBD')}
               <div className="mt-8">
