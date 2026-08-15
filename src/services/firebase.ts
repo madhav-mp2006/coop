@@ -46,7 +46,7 @@ export interface LeagueSettings {
   totalRounds: number;
   championId?: string | null;
   tournamentType?: 'round_robin' | 'world_cup';
-  password?: string;
+  password?: string | null;
 }
 
 export interface Match {

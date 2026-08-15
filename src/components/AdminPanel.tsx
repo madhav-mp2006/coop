@@ -124,7 +124,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         dPoints,
         lPoints,
         tournamentType,
-        password: leaguePassword || undefined
+        password: leaguePassword || null
       });
       setLeagueName('');
       setLeaguePassword('');
