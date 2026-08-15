@@ -476,7 +476,7 @@ export const publicCreateTeam = async (
   player: Player,
   flagCode?: string,
   paymentScreenshot?: string
-): Promise<{ teamId: string; code: string }> => {
+): Promise<{ teamId: string; code: string; team: Team }> => {
   const teamId = `team-${Date.now()}`;
   const code = Math.random().toString(36).substring(2, 7).toUpperCase(); // e.g. "7X9KW"
   const newTeam: Team = {
@@ -493,9 +493,10 @@ export const publicCreateTeam = async (
     paymentScreenshot: paymentScreenshot || ''
   };
 
-  await runDbOperation(
+  return runDbOperation(
     async () => {
       await setDoc(doc(db!, 'teams', teamId), newTeam);
+      return { teamId, code, team: newTeam };
     },
     async () => {
       const teams = await getTeams();
@@ -511,7 +512,7 @@ export const publicCreateTeam = async (
 export const publicJoinTeam = async (
   code: string, 
   player: Player
-): Promise<{ teamId: string; code: string }> => {
+): Promise<{ teamId: string; code: string; team: Team }> => {
   return runDbOperation(
     async () => {
       // Find team by code in Firestore
@@ -530,7 +531,7 @@ export const publicJoinTeam = async (
       const updatedPlayers = [...targetTeamDoc.players, player];
       const teamRef = doc(db!, 'teams', targetTeamDoc.id);
       await setDoc(teamRef, { players: updatedPlayers }, { merge: true });
-      return { teamId: targetTeamDoc.id, code: code.trim().toUpperCase() };
+      return { teamId: targetTeamDoc.id, code: code.trim().toUpperCase(), team: { ...targetTeamDoc, players: updatedPlayers } };
     },
     async () => {
       const teams = await getTeams();
@@ -544,7 +545,7 @@ export const publicJoinTeam = async (
       targetTeam.players.push(player);
       localStorage.setItem(LS_TEAMS, JSON.stringify(teams));
       triggerTeamsListeners();
-      return { teamId: targetTeam.id, code: code.trim().toUpperCase() };
+      return { teamId: targetTeam.id, code: code.trim().toUpperCase(), team: targetTeam };
     },
     'Join team roster'
   );

@@ -25,8 +25,8 @@ interface TeamRegistrationProps {
   teams: Record<string, Team>;
   fixtures: Match[];
   standings: StandingRow[];
-  onRegisterTeam: (name: string, color: string, player: Player, flagCode?: string, paymentScreenshot?: string) => Promise<{ teamId: string, code: string }>;
-  onJoinTeam: (code: string, player: Player) => Promise<{ teamId: string, code: string }>;
+  onRegisterTeam: (name: string, color: string, player: Player, flagCode?: string, paymentScreenshot?: string) => Promise<{ teamId: string, code: string, team: Team }>;
+  onJoinTeam: (code: string, player: Player) => Promise<{ teamId: string, code: string, team: Team }>;
   onUpdateScore?: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
   onSaveRoomCode?: (matchId: string, code: string) => Promise<void>;
   groupStandings?: Record<string, StandingRow[]>;
@@ -65,6 +65,10 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
 
   // Access Team State
   const [accessCode, setAccessCode] = useState('');
+  
+  // Temporarily store the created/joined team so it renders instantly
+  // before the Firebase snapshot propagates.
+  const [tempMyTeam, setTempMyTeam] = useState<Team | null>(null);
 
   // UI status states
   const [submitting, setSubmitting] = useState(false);
@@ -132,10 +136,11 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
     }
   }, [league]);
 
-  // Find user's active team associated with the active league and code
-  const myTeam = myTeamCode 
+  const myTeamFromState = myTeamCode 
     ? Object.values(teams).find(t => t.code && t.code.toUpperCase() === myTeamCode && t.leagueId === activeLeagueId) 
     : null;
+    
+  const myTeam = myTeamFromState || tempMyTeam;
 
   // Filter teams registered for this active league
   const leagueTeams = Object.values(teams).filter(t => t.leagueId === activeLeagueId);
@@ -180,6 +185,7 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
       
       localStorage.setItem('scores_my_team_code', result.code.toUpperCase());
       setMyTeamCode(result.code.toUpperCase());
+      setTempMyTeam(result.team);
       setSuccess(`Team "${teamName}" created successfully! Code: ${result.code}`);
       setTeamName('');
       setSelectedColor('#10b981');
@@ -223,6 +229,7 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
       
       localStorage.setItem('scores_my_team_code', result.code.toUpperCase());
       setMyTeamCode(result.code.toUpperCase());
+      setTempMyTeam(result.team);
       setSuccess('You have successfully joined the team roster!');
       setP2Name('');
       setJoinCode('');
