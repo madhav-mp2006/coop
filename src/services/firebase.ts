@@ -330,8 +330,9 @@ const runDbOperation = async <T>(
   if (useFirebase && db) {
     try {
       return await withTimeout(firebaseOp(), 10000, `${opName} timed out.`);
-    } catch (err) {
+    } catch (err: any) {
       console.warn(`${opName} failed on Firebase. Automatically falling back to Local Mock Database:`, err);
+      alert(`Firebase connection failed during: ${opName}\nError: ${err.message || 'Unknown error'}\n\nPlease check your Firestore Database rules or connection.`);
       useFirebase = false;
       localStorage.setItem('scores_force_mock_db', 'true');
       

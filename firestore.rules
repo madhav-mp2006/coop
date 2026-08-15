@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user is logged in
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Config: Anyone can read the active league, but nobody can write from the client app.
+    // (You can still edit it directly from the Firebase Console)
+    match /config/activeLeague {
+      allow read: if true;
+      allow write: if false; 
+    }
+    
+    // Credentials: NO client access whatsoever. 
+    // This protects your admin credentials from being read or modified by users.
+    match /config/admin_credentials {
+      allow read, write: if false;
+    }
+    
+    // Leagues: public read, but only authenticated users can write
+    match /leagues/{leagueId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+    
+    // Teams: public read, but only authenticated users can write (e.g. register)
+    match /teams/{teamId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+    
+    // Fixtures: public read, but only authenticated users can write (e.g. update scores)
+    match /fixtures/{leagueId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+  }
+}
