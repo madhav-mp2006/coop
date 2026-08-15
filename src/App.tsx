@@ -247,7 +247,7 @@ function App() {
       const calculated = calculateStandings(teams, fixtures, league);
       setStandings(calculated);
 
-      if (league.tournamentType === 'world_cup') {
+      if (league.tournamentType === 'world_cup' && league.status !== 'registration' && league.status !== 'setup') {
         const calcGroups = calculateGroupStandings(teams, fixtures, league);
         setGroupStandings(calcGroups);
       } else {

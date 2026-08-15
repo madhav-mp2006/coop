@@ -203,7 +203,7 @@ export const Standings: React.FC<StandingsProps> = ({ standings, groupStandings,
         </div>
       </div>
 
-      {isWorldCup && groupStandings ? (
+      {isWorldCup && groupStandings && Object.keys(groupStandings).length > 0 ? (
         Object.keys(groupStandings).sort().map(group => renderTable(groupStandings[group], group))
       ) : (
         renderTable(standings)
