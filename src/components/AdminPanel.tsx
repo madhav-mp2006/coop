@@ -44,6 +44,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [leaguePassword, setLeaguePassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   // Score override / approval states
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
@@ -383,6 +384,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* 2. TEAMS MANAGEMENT & ROSTER APPROVALS FOR ACTIVE LEAGUE */}
       {activeLeagueId ? (
         <div className="space-y-4 sm:space-y-6">
+          {viewingImage && (
+            <div 
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" 
+              onClick={() => setViewingImage(null)}
+            >
+              <div className="relative max-w-full max-h-full flex flex-col items-end">
+                <button 
+                  className="text-white hover:text-rose-400 font-bold bg-slate-900/80 px-3 py-1.5 rounded mb-2 transition-colors border border-slate-700 hover:border-rose-500/50"
+                  onClick={() => setViewingImage(null)}
+                >
+                  Close ✕
+                </button>
+                <img 
+                  src={viewingImage} 
+                  alt="Payment Screenshot" 
+                  className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-slate-700 bg-slate-900/50" 
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
+          )}
           <div className="glass-panel rounded-2xl p-4 sm:p-6 border border-slate-800">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
               <div>
@@ -471,14 +493,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <p className="text-xs text-slate-400">Captain: {team.captainEmail}</p>
                       <p className="text-[10px] text-slate-500 mt-0.5">Players: {team.players.length} registered</p>
                       {team.paymentScreenshot && (
-                        <a 
-                          href={team.paymentScreenshot} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="text-[10px] text-emerald-400 hover:underline mt-1 inline-block"
+                        <button 
+                          onClick={() => setViewingImage(team.paymentScreenshot!)}
+                          className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline mt-1 inline-block text-left"
                         >
                           View Payment Screenshot
-                        </a>
+                        </button>
                       )}
                     </div>
 
