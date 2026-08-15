@@ -285,6 +285,8 @@ function App() {
         setActiveTab('knockout');
       } else if (league.status === 'active') {
         setActiveTab('fixtures');
+      } else if (league.status === 'registration') {
+        setActiveTab('registration');
       }
     }
   }, [league?.status, league?.currentRound]);
