@@ -1134,15 +1134,45 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                if (file.size > 2 * 1024 * 1024) {
-                                  setError('Image must be less than 2MB.');
-                                  return;
-                                }
                                 const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setPaymentScreenshot(reader.result as string);
-                                };
                                 reader.readAsDataURL(file);
+                                reader.onload = (event) => {
+                                  const img = new Image();
+                                  img.src = event.target?.result as string;
+                                  img.onload = () => {
+                                    const canvas = document.createElement('canvas');
+                                    const MAX_WIDTH = 800;
+                                    const MAX_HEIGHT = 800;
+                                    let width = img.width;
+                                    let height = img.height;
+
+                                    if (width > height) {
+                                      if (width > MAX_WIDTH) {
+                                        height *= MAX_WIDTH / width;
+                                        width = MAX_WIDTH;
+                                      }
+                                    } else {
+                                      if (height > MAX_HEIGHT) {
+                                        width *= MAX_HEIGHT / height;
+                                        height = MAX_HEIGHT;
+                                      }
+                                    }
+                                    canvas.width = width;
+                                    canvas.height = height;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx?.drawImage(img, 0, 0, width, height);
+                                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                                    
+                                    // Verify final size is well within Firestore 1MB limit (approx 750KB base64 is ~1MB)
+                                    if (dataUrl.length > 700000) {
+                                        setError('Image is still too large after compression. Please upload a smaller image.');
+                                        return;
+                                    }
+                                    
+                                    setPaymentScreenshot(dataUrl);
+                                    setError(null);
+                                  };
+                                };
                               }
                             }}
                             className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-emerald-500/20 file:text-emerald-400 hover:file:bg-emerald-500/30 file:cursor-pointer"
