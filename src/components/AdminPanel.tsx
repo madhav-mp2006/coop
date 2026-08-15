@@ -41,6 +41,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [wPoints, setWPoints] = useState(3);
   const [dPoints, setDPoints] = useState(1);
   const [lPoints, setLPoints] = useState(0);
+  const [leaguePassword, setLeaguePassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,9 +123,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         wPoints,
         dPoints,
         lPoints,
-        tournamentType
+        tournamentType,
+        password: leaguePassword || undefined
       });
       setLeagueName('');
+      setLeaguePassword('');
     } catch (err: any) {
       setError(err.message || 'Failed to create league.');
     } finally {
@@ -250,6 +253,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 placeholder="e.g. Winter Cup"
                 value={leagueName}
                 onChange={(e) => setLeagueName(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Access Password (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="Leave blank for public access"
+                value={leaguePassword}
+                onChange={(e) => setLeaguePassword(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
               />
             </div>
@@ -454,6 +470,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                       <p className="text-xs text-slate-400">Captain: {team.captainEmail}</p>
                       <p className="text-[10px] text-slate-500 mt-0.5">Players: {team.players.length} registered</p>
+                      {team.paymentScreenshot && (
+                        <a 
+                          href={team.paymentScreenshot} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="text-[10px] text-emerald-400 hover:underline mt-1 inline-block"
+                        >
+                          View Payment Screenshot
+                        </a>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5">

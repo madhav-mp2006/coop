@@ -31,6 +31,7 @@ export interface Team {
   code?: string;
   flagCode?: string;
   groupId?: string;
+  paymentScreenshot?: string;
 }
 
 export interface LeagueSettings {
@@ -45,6 +46,7 @@ export interface LeagueSettings {
   totalRounds: number;
   championId?: string | null;
   tournamentType?: 'round_robin' | 'world_cup';
+  password?: string;
 }
 
 export interface Match {
@@ -471,7 +473,8 @@ export const publicCreateTeam = async (
   teamName: string, 
   color: string, 
   player: Player,
-  flagCode?: string
+  flagCode?: string,
+  paymentScreenshot?: string
 ): Promise<{ teamId: string; code: string }> => {
   const teamId = `team-${Date.now()}`;
   const code = Math.random().toString(36).substring(2, 7).toUpperCase(); // e.g. "7X9KW"
@@ -485,7 +488,8 @@ export const publicCreateTeam = async (
     status: 'pending',
     players: [player],
     code: code,
-    flagCode: flagCode || ''
+    flagCode: flagCode || '',
+    paymentScreenshot: paymentScreenshot || ''
   };
 
   await runDbOperation(

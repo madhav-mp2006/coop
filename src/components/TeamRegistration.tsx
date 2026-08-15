@@ -25,7 +25,7 @@ interface TeamRegistrationProps {
   teams: Record<string, Team>;
   fixtures: Match[];
   standings: StandingRow[];
-  onRegisterTeam: (name: string, color: string, player: Player, flagCode?: string) => Promise<{ teamId: string, code: string }>;
+  onRegisterTeam: (name: string, color: string, player: Player, flagCode?: string, paymentScreenshot?: string) => Promise<{ teamId: string, code: string }>;
   onJoinTeam: (code: string, player: Player) => Promise<{ teamId: string, code: string }>;
   onUpdateScore?: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
   onSaveRoomCode?: (matchId: string, code: string) => Promise<void>;
@@ -57,6 +57,7 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
   const [selectedColor, setSelectedColor] = useState('#10b981');
   const [selectedFlagCode, setSelectedFlagCode] = useState('');
   const [p1Name, setP1Name] = useState('');
+  const [paymentScreenshot, setPaymentScreenshot] = useState<string>('');
 
   // Join Team States
   const [joinCode, setJoinCode] = useState('');
@@ -162,6 +163,10 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
       setError('Team name and player name are required.');
       return;
     }
+    if (!paymentScreenshot) {
+      setError('Please upload a screenshot of your payment.');
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -171,7 +176,7 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
         position: 'Player'
       };
       
-      const result = await onRegisterTeam(teamName.trim(), selectedColor, player, selectedFlagCode);
+      const result = await onRegisterTeam(teamName.trim(), selectedColor, player, selectedFlagCode, paymentScreenshot);
       
       localStorage.setItem('scores_my_team_code', result.code.toUpperCase());
       setMyTeamCode(result.code.toUpperCase());
@@ -180,6 +185,7 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
       setSelectedColor('#10b981');
       setSelectedFlagCode('');
       setP1Name('');
+      setPaymentScreenshot('');
     } catch (err: any) {
       setError(err.message || 'Failed to register team.');
     } finally {
@@ -1087,6 +1093,46 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
                             value={p1Name}
                             onChange={(e) => setP1Name(e.target.value)}
                             className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-900 space-y-3">
+                      <p className="text-[10px] font-extrabold text-emerald-405 uppercase tracking-wider">
+                        Payment
+                      </p>
+                      <div className="flex flex-col items-center gap-3">
+                        <p className="text-xs text-slate-300 text-center">
+                          Registration Fee: <strong className="text-emerald-400">₹40 per team</strong>
+                        </p>
+                        <img 
+                          src="/gpay-qr.jpg" 
+                          alt="Payment QR Code" 
+                          className="w-32 h-32 rounded-lg border-2 border-emerald-500/50 object-cover"
+                        />
+                        <div className="w-full">
+                          <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-1">
+                            Upload Screenshot (Required)
+                          </label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (file.size > 2 * 1024 * 1024) {
+                                  setError('Image must be less than 2MB.');
+                                  return;
+                                }
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setPaymentScreenshot(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-emerald-500/20 file:text-emerald-400 hover:file:bg-emerald-500/30 file:cursor-pointer"
                           />
                         </div>
                       </div>

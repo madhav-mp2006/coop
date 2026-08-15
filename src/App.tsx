@@ -847,8 +847,8 @@ function App() {
   };
 
   // Wrapped publicCreateTeam with notifications
-  const handlePublicCreateTeam = async (leagueId: string, name: string, color: string, player: import('./services/firebase').Player, flagCode?: string) => {
-    const result = await firebasePublicCreateTeam(leagueId, name, color, player, flagCode);
+  const handlePublicCreateTeam = async (leagueId: string, name: string, color: string, player: import('./services/firebase').Player, flagCode?: string, paymentScreenshot?: string) => {
+    const result = await firebasePublicCreateTeam(leagueId, name, color, player, flagCode, paymentScreenshot);
     
     // Trigger offline/background push notifications for admin
     sendFCMNotification(
@@ -943,6 +943,30 @@ function App() {
     setActiveTab(isEmailAdmin ? 'admin' : 'standings');
   };
 
+  const handleLeagueSelect = async (id: string | null) => {
+    if (!id) {
+      await saveActiveLeagueId(null);
+      return;
+    }
+    const targetLeague = leagues[id];
+    const requiredPassword = targetLeague?.password || (targetLeague?.name?.toLowerCase().includes('efootball') ? '7890' : null);
+    if (requiredPassword) {
+      const unlocked = localStorage.getItem(`league_unlocked_${id}`);
+      if (unlocked !== 'true') {
+        const input = window.prompt(`Password required for ${targetLeague.name}:`);
+        if (input === requiredPassword) {
+          localStorage.setItem(`league_unlocked_${id}`, 'true');
+        } else if (input !== null) {
+          alert('Incorrect password.');
+          return;
+        } else {
+          return;
+        }
+      }
+    }
+    await saveActiveLeagueId(id);
+  };
+
   return (
     <div className="min-h-screen flex flex-col justify-between">
       {/* HEADER BAR */}
@@ -964,7 +988,7 @@ function App() {
                 <span className="hidden sm:inline text-xs text-slate-400 font-bold uppercase tracking-wider flex-shrink-0">Tournament:</span>
                 <select
                   value={activeLeagueId || ''}
-                  onChange={(e) => saveActiveLeagueId(e.target.value || null)}
+                  onChange={(e) => handleLeagueSelect(e.target.value || null)}
                   className="bg-slate-900 border border-slate-800 rounded-xl px-2 sm:px-3 py-1.5 text-xs font-semibold text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer min-w-0 flex-1 max-w-[160px] sm:max-w-none"
                 >
                   <option value="" disabled>-- Select --</option>
@@ -1263,7 +1287,7 @@ function App() {
             onCreateLeague={handleCreateLeague}
             onApproveTeam={handleApproveOrRejectTeam}
             onStartLeague={handleStartLeague}
-            onSelectActiveLeague={saveActiveLeagueId}
+            onSelectActiveLeague={handleLeagueSelect}
             onReset={handleResetTournament}
             onDeleteLeague={handleDeleteLeague}
             onDeleteTeam={deleteTeam}
@@ -1280,9 +1304,9 @@ function App() {
             fixtures={fixtures}
             standings={standings}
             groupStandings={groupStandings}
-            onRegisterTeam={async (name, color, player, flagCode) => {
+            onRegisterTeam={async (name, color, player, flagCode, paymentScreenshot) => {
               if (!activeLeagueId) throw new Error('No active league.');
-              const result = await handlePublicCreateTeam(activeLeagueId, name, color, player, flagCode);
+              const result = await handlePublicCreateTeam(activeLeagueId, name, color, player, flagCode, paymentScreenshot);
               syncVisitorTeam(); // keep myVisitorTeamId in sync after creating
               return result;
             }}
