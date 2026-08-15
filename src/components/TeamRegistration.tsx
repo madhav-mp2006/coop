@@ -173,6 +173,12 @@ export const TeamRegistration: React.FC<TeamRegistrationProps> = ({
       return;
     }
 
+    const isNameTaken = leagueTeams.some(t => t.name.toLowerCase() === teamName.trim().toLowerCase());
+    if (isNameTaken) {
+      setError('This team name is already taken. Please choose another.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       const player: Player = {
