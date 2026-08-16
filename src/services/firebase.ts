@@ -110,9 +110,7 @@ let db: ReturnType<typeof getFirestore> | null = null;
 let messaging: Messaging | null = null;
 let useFirebase = false;
 
-const forceMock = localStorage.getItem('scores_force_mock_db') === 'true';
-
-if (isFirebaseConfigured && !forceMock) {
+if (isFirebaseConfigured) {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     db = getFirestore(app);
@@ -122,32 +120,26 @@ if (isFirebaseConfigured && !forceMock) {
     useFirebase = true;
     console.log('Scores: Firestore initialized successfully.');
     
-    // Seed admin credentials into Firestore if not present (wrapped in timeout)
+    // Seed admin credentials into Firestore if not present
     const adminRef = doc(db, 'config', 'admin_credentials');
-    withTimeout(getDoc(adminRef), 10000)
-      .then((snapshot) => {
-        if (!snapshot.exists()) {
-          withTimeout(setDoc(adminRef, {
-            email: 'admin@scores.com',
-            password: 'adminpassword'
-          }), 10000).catch(err => {
-            console.warn("Could not seed admin credentials to Firestore:", err);
-          });
-        }
-      })
-      .catch(err => {
-        console.warn("Could not check admin credentials in Firestore (timed out/failed):", err);
-      });
+    getDoc(adminRef).then((snapshot) => {
+      if (!snapshot.exists()) {
+        setDoc(adminRef, {
+          email: 'admin@scores.com',
+          password: 'adminpassword'
+        }).catch(err => {
+          console.warn("Could not seed admin credentials to Firestore:", err);
+        });
+      }
+    }).catch(err => {
+      console.warn("Could not check admin credentials in Firestore:", err);
+    });
   } catch (error) {
-    console.error('Scores: Firestore initialization failed. Falling back to Mock mode.', error);
+    console.error('Scores: Firestore initialization failed.', error);
     useFirebase = false;
   }
 } else {
-  if (forceMock) {
-    console.log('Scores: Forced Local Mock mode via localStorage.');
-  } else {
-    console.log('Scores: No Firebase credentials found. Running in Local Mock mode.');
-  }
+  console.log('Scores: No Firebase credentials found. Running in Local Mock mode.');
 }
 
 // Local Storage Keys
@@ -321,7 +313,7 @@ export const toggleDatabaseMode = () => {
   window.location.reload();
 };
 
-// Unified Database Operation Wrapper with self-healing auto fallback
+// Unified Database Operation Wrapper
 const runDbOperation = async <T>(
   firebaseOp: () => Promise<T>,
   mockOp: () => Promise<T>,
@@ -329,25 +321,11 @@ const runDbOperation = async <T>(
 ): Promise<T> => {
   if (useFirebase && db) {
     try {
-      // Execute without artificial timeout so we can see real Firebase errors
       return await firebaseOp();
     } catch (err: any) {
-      console.warn(`${opName} failed on Firebase:`, err);
-      alert(`Firebase connection failed during: ${opName}\nError: ${err.message || 'Unknown error'}\n\nPlease check your Firestore Database rules or connection.`);
-      
-      // We will quietly switch to mock DB without a blocking alert
-      useFirebase = false;
-      localStorage.setItem('scores_force_mock_db', 'true');
-      
-      // Perform the mock operation first so local state is updated immediately
-      const result = await mockOp();
-      
-      // Schedule page reload so active listeners re-subscribe to local storage sync
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-      
-      return result;
+      console.error(`${opName} failed on Firebase:`, err);
+      // Throw the error so the UI can display it without falling back
+      throw err;
     }
   } else {
     return await mockOp();
