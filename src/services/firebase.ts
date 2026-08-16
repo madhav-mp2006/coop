@@ -329,19 +329,25 @@ const runDbOperation = async <T>(
 ): Promise<T> => {
   if (useFirebase && db) {
     try {
-      return await withTimeout(firebaseOp(), 10000, `${opName} timed out.`);
+      // Execute without artificial timeout so we can see real Firebase errors
+      return await firebaseOp();
     } catch (err: any) {
-      console.warn(`${opName} failed on Firebase. Automatically falling back to Local Mock Database:`, err);
+      console.warn(`${opName} failed on Firebase:`, err);
       alert(`Firebase connection failed during: ${opName}\nError: ${err.message || 'Unknown error'}\n\nPlease check your Firestore Database rules or connection.`);
+      
+      // We will quietly switch to mock DB without a blocking alert
       useFirebase = false;
       localStorage.setItem('scores_force_mock_db', 'true');
+      
+      // Perform the mock operation first so local state is updated immediately
+      const result = await mockOp();
       
       // Schedule page reload so active listeners re-subscribe to local storage sync
       setTimeout(() => {
         window.location.reload();
-      }, 800);
+      }, 1500);
       
-      return await mockOp();
+      return result;
     }
   } else {
     return await mockOp();
@@ -503,10 +509,10 @@ export const publicCreateTeam = async (
       teams[teamId] = newTeam;
       localStorage.setItem(LS_TEAMS, JSON.stringify(teams));
       triggerTeamsListeners();
+      return { teamId, code, team: newTeam };
     },
     'Create team profile'
   );
-  return { teamId, code };
 };
 
 export const publicJoinTeam = async (
