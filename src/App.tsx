@@ -620,8 +620,8 @@ function App() {
                 notificationMsg
               );
             } else {
-              // Unlock next round by incrementing active round
-              await saveLeagueSettings(activeLeagueId, { currentRound: activeRoundNum + 1 });
+              // Unlock next round by incrementing active round if it hasn't advanced yet
+              await saveLeagueSettings(activeLeagueId, { currentRound: Math.max(currentSettings.currentRound, activeRoundNum + 1) });
               sendFCMNotification(
                 'admins', null,
                 '🏁 New Round Started',
@@ -675,8 +675,8 @@ function App() {
                 );
               }
             } else {
-              // Unlock next round by incrementing active round
-              await saveLeagueSettings(activeLeagueId, { currentRound: activeRoundNum + 1 });
+              // Unlock next round by incrementing active round if it hasn't advanced yet
+              await saveLeagueSettings(activeLeagueId, { currentRound: Math.max(currentSettings.currentRound, activeRoundNum + 1) });
               
               // Trigger offline push notifications for new round
               sendFCMNotification(

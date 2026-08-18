@@ -167,7 +167,7 @@ export const Fixtures: React.FC<FixturesProps> = ({
 
                   const isCompleted = match.isCompleted;
                   const isAdmin = currentUser?.role === 'admin';
-                  const canEnterScore = isRoundActive && isAdmin;
+                  const canEnterScore = isAdmin; // Allow admins to edit any round
                   const isEditing = selectedMatchId === match.id;
 
                   // Room code logic
