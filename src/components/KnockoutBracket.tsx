@@ -29,12 +29,28 @@ export const KnockoutBracket: React.FC<KnockoutBracketProps> = ({
 
   const sf1 = fixtures.find(m => m.round === 'SF1');
   const sf2 = fixtures.find(m => m.round === 'SF2');
-  const thirdPlaceMatch = fixtures.find(m => m.round === 'THIRD_PLACE');
   const finalMatch = fixtures.find(m => m.round === 'FINAL');
   
   const r32Matches = Array.from({length: 16}, (_, i) => fixtures.find(m => m.id === `match-r32-${i+1}`));
   const r16Matches = Array.from({length: 8}, (_, i) => fixtures.find(m => m.id === `match-r16-${i+1}`));
   const qfMatches = Array.from({length: 4}, (_, i) => fixtures.find(m => m.id === `match-qf-${i+1}`));
+
+  const hasR32 = r32Matches.some(m => !!m);
+  const isR32Complete = !hasR32 || r32Matches.every(m => !m || m.isCompleted);
+
+  const hasR16 = r16Matches.some(m => !!m);
+  const isR16Complete = !hasR16 || r16Matches.every(m => !m || m.isCompleted);
+
+  const hasQf = qfMatches.some(m => !!m);
+  const isQfComplete = !hasQf || qfMatches.every(m => !m || m.isCompleted);
+
+  const isSfComplete = (!sf1 || sf1.isCompleted) && (!sf2 || sf2.isCompleted);
+
+  const showR32Mobile = hasR32 && !isR32Complete;
+  const showR16Mobile = hasR16 && isR32Complete && !isR16Complete;
+  const showQfMobile = hasQf && isR16Complete && !isQfComplete;
+  const showSfMobile = isQfComplete && !isSfComplete;
+  const showFinalsMobile = isSfComplete;
 
   const isWorldCup = tournamentType === 'world_cup';
 
@@ -277,39 +293,38 @@ export const KnockoutBracket: React.FC<KnockoutBracketProps> = ({
       <div className="max-w-7xl mx-auto overflow-x-auto pb-4">
         {isWorldCup ? (
           <div className="min-w-max flex gap-6">
-            {r32Matches.some(m => !!m) && (
-              <div className="space-y-4 w-72">
+            {hasR32 && (
+              <div className={`space-y-4 w-72 ${!showR32Mobile ? 'hidden md:block' : ''}`}>
                 <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4 sticky left-0">Round of 32</h3>
                 {r32Matches.map((m, i) => (
                    <div key={i}>{renderMatchCard(m, `Round of 32 - Match ${i+1}`, 'TBD', 'TBD')}</div>
                 ))}
               </div>
             )}
-            {r16Matches.some(m => !!m) && (
-              <div className={`space-y-4 w-72 ${r32Matches.some(m => !!m) ? 'pt-8' : ''}`}>
+            {hasR16 && (
+              <div className={`space-y-4 w-72 ${hasR32 ? 'pt-8' : ''} ${!showR16Mobile ? 'hidden md:block' : ''}`}>
                 <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Round of 16</h3>
                 {r16Matches.map((m, i) => (
                    <div key={i} className="mb-8">{renderMatchCard(m, `Round of 16 - Match ${i+1}`, 'TBD', 'TBD')}</div>
                 ))}
               </div>
             )}
-            {qfMatches.some(m => !!m) && (
-              <div className={`space-y-4 w-72 ${r16Matches.some(m => !!m) ? 'pt-24' : ''}`}>
+            {hasQf && (
+              <div className={`space-y-4 w-72 ${hasR16 ? 'pt-24' : ''} ${!showQfMobile ? 'hidden md:block' : ''}`}>
                 <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Quarter-Finals</h3>
                 {qfMatches.map((m, i) => (
                    <div key={i} className="mb-24">{renderMatchCard(m, `Quarter-Final ${i+1}`, 'TBD', 'TBD')}</div>
                 ))}
               </div>
             )}
-            <div className={`space-y-4 w-72 ${qfMatches.some(m => !!m) ? 'pt-48' : ''}`}>
+            <div className={`space-y-4 w-72 ${hasQf ? 'pt-48' : ''} ${!showSfMobile ? 'hidden md:block' : ''}`}>
               <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Semi-Finals</h3>
               <div className="mb-48">{renderMatchCard(sf1, 'Semi-Final 1', 'TBD', 'TBD')}</div>
               <div>{renderMatchCard(sf2, 'Semi-Final 2', 'TBD', 'TBD')}</div>
             </div>
-            <div className={`space-y-4 w-72 ${qfMatches.some(m => !!m) ? 'pt-48' : ''}`}>
+            <div className={`space-y-4 w-72 ${hasQf ? 'pt-48' : ''} ${!showFinalsMobile ? 'hidden md:block' : ''}`}>
               <h3 className="text-amber-400 font-bold uppercase text-xs tracking-widest mb-4">Finals</h3>
-              {renderMatchCard(thirdPlaceMatch, 'Third Place Play-off', 'TBD', 'TBD')}
-              <div className="mt-8">
+              <div>
                 {renderMatchCard(finalMatch, 'Grand Final', 'TBD', 'TBD')}
               </div>
             </div>
@@ -318,28 +333,27 @@ export const KnockoutBracket: React.FC<KnockoutBracketProps> = ({
           <>
             {/* Mobile: vertical stack with arrow indicators */}
             <div className="md:hidden space-y-4">
-              <div className="space-y-4">
-                {renderMatchCard(sf1, 'Semi-Final 1', '1st Place', '4th Place')}
-                {renderMatchCard(sf2, 'Semi-Final 2', '2nd Place', '3rd Place')}
-              </div>
-
-              {/* Down arrow divider */}
-              <div className="flex flex-col items-center py-2 text-slate-700">
-                <ArrowDown className="w-5 h-5 animate-pulse" />
-                <span className="text-[10px] text-slate-600 uppercase font-bold tracking-wider mt-1">Grand Final</span>
-                <ArrowDown className="w-5 h-5 animate-pulse mt-1" />
-              </div>
-
-              <div>
-                {renderMatchCard(finalMatch, 'Grand Final', 'Winner SF1', 'Winner SF2')}
-              </div>
-
-              {/* Trophy Icon */}
-              <div className="flex justify-center pt-2">
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400">
-                  <Trophy className="w-7 h-7" />
+              {!isSfComplete && (
+                <div className="space-y-4">
+                  {renderMatchCard(sf1, 'Semi-Final 1', '1st Place', '4th Place')}
+                  {renderMatchCard(sf2, 'Semi-Final 2', '2nd Place', '3rd Place')}
                 </div>
-              </div>
+              )}
+
+              {isSfComplete && (
+                <>
+                  <div>
+                    {renderMatchCard(finalMatch, 'Grand Final', 'Winner SF1', 'Winner SF2')}
+                  </div>
+
+                  {/* Trophy Icon */}
+                  <div className="flex justify-center pt-2">
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400">
+                      <Trophy className="w-7 h-7" />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Desktop: horizontal bracket */}

@@ -503,7 +503,6 @@ function App() {
                 { id: 'match-sf-1', leagueId: activeLeagueId, round: 'SF1', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false },
                 { id: 'match-sf-2', leagueId: activeLeagueId, round: 'SF2', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false }
               ];
-              const thirdPlaceMatch: Match = { id: 'match-third-place', leagueId: activeLeagueId, round: 'THIRD_PLACE', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false };
               const finalMatch: Match = { id: 'match-final', leagueId: activeLeagueId, round: 'FINAL', homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null, isCompleted: false, submittedBy: null, isDisputed: false };
 
               let newFixtures: Match[] = [];
@@ -551,7 +550,7 @@ function App() {
                   homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null,
                   isCompleted: false, submittedBy: null, isDisputed: false
                 }));
-                newFixtures = [...r32Matches, ...r16Matches, ...qfMatches, ...sfMatches, thirdPlaceMatch, finalMatch];
+                newFixtures = [...r32Matches, ...r16Matches, ...qfMatches, ...sfMatches, finalMatch];
                 notificationMsg = 'The Group Stage is complete. Round of 32 matches are now live!';
               } else if (currentSettings.teamCount === 32) {
                 // 32 Teams -> R16
@@ -582,7 +581,7 @@ function App() {
                   homeTeamId: 'TBD', awayTeamId: 'TBD', homeScore: null, awayScore: null,
                   isCompleted: false, submittedBy: null, isDisputed: false
                 }));
-                newFixtures = [...r16Matches, ...qfMatches, ...sfMatches, thirdPlaceMatch, finalMatch];
+                newFixtures = [...r16Matches, ...qfMatches, ...sfMatches, finalMatch];
                 notificationMsg = 'The Group Stage is complete. Round of 16 matches are now live!';
               } else if (currentSettings.teamCount === 16) {
                 // 16 Teams -> QF
@@ -608,7 +607,7 @@ function App() {
                     isCompleted: false, submittedBy: null, isDisputed: false
                   });
                 }
-                newFixtures = [...qfMatches, ...sfMatches, thirdPlaceMatch, finalMatch];
+                newFixtures = [...qfMatches, ...sfMatches, finalMatch];
                 notificationMsg = 'The Group Stage is complete. Quarter-Final matches are now live!';
               }
 
@@ -764,14 +763,6 @@ function App() {
             ...updatedFixtures[finalIdx],
             homeTeamId: sf1Winner,
             awayTeamId: sf2Winner
-          };
-        }
-        const thirdPlaceIdx = updatedFixtures.findIndex(m => m.round === 'THIRD_PLACE');
-        if (thirdPlaceIdx !== -1) {
-          updatedFixtures[thirdPlaceIdx] = {
-            ...updatedFixtures[thirdPlaceIdx],
-            homeTeamId: sf1Loser,
-            awayTeamId: sf2Loser
           };
         }
         await saveFixtures(activeLeagueId, updatedFixtures);
