@@ -754,8 +754,7 @@ function App() {
         const sf1Winner = sf1Match.homeScore! > sf1Match.awayScore! ? sf1Match.homeTeamId : sf1Match.awayTeamId;
         const sf2Winner = sf2Match.homeScore! > sf2Match.awayScore! ? sf2Match.homeTeamId : sf2Match.awayTeamId;
         
-        const sf1Loser = sf1Match.homeScore! < sf1Match.awayScore! ? sf1Match.homeTeamId : sf1Match.awayTeamId;
-        const sf2Loser = sf2Match.homeScore! < sf2Match.awayScore! ? sf2Match.homeTeamId : sf2Match.awayTeamId;
+
 
         const finalIdx = updatedFixtures.findIndex(m => m.round === 'FINAL');
         if (finalIdx !== -1) {

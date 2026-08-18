@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Match, Team, AppUser } from '../services/firebase';
-import { Trophy, ArrowDown, Award } from 'lucide-react';
+import { Trophy, Award } from 'lucide-react';
 
 interface KnockoutBracketProps {
   fixtures: Match[];
