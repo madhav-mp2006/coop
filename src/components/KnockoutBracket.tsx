@@ -292,40 +292,61 @@ export const KnockoutBracket: React.FC<KnockoutBracketProps> = ({
       {/* Bracket - stacked on mobile, side by side on md+ */}
       <div className="max-w-7xl mx-auto overflow-x-auto pb-4">
         {isWorldCup ? (
-          <div className="min-w-max flex gap-6">
+          <div className="min-w-max flex gap-8">
             {hasR32 && (
-              <div className={`space-y-4 w-72 ${!showR32Mobile ? 'hidden md:block' : ''}`}>
-                <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4 sticky left-0">Round of 32</h3>
-                {r32Matches.map((m, i) => (
-                   <div key={i}>{renderMatchCard(m, `Round of 32 - Match ${i+1}`, 'TBD', 'TBD')}</div>
-                ))}
+              <div className={`w-72 flex flex-col ${!showR32Mobile ? 'hidden md:flex' : 'flex'}`}>
+                <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-6 text-center sticky left-0">Round of 32</h3>
+                <div className="flex flex-col flex-1 justify-around gap-4">
+                  {Array.from({length: 8}).map((_, i) => (
+                    <div key={i} className="flex flex-col gap-4">
+                      {renderMatchCard(r32Matches[i*2], `Round of 32 - Match ${i*2+1}`, 'TBD', 'TBD')}
+                      {renderMatchCard(r32Matches[i*2+1], `Round of 32 - Match ${i*2+2}`, 'TBD', 'TBD')}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {hasR16 && (
-              <div className={`space-y-4 w-72 ${hasR32 ? 'pt-8' : ''} ${!showR16Mobile ? 'hidden md:block' : ''}`}>
-                <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Round of 16</h3>
-                {r16Matches.map((m, i) => (
-                   <div key={i} className="mb-8">{renderMatchCard(m, `Round of 16 - Match ${i+1}`, 'TBD', 'TBD')}</div>
-                ))}
+              <div className={`w-72 flex flex-col ${!showR16Mobile ? 'hidden md:flex' : 'flex'}`}>
+                <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-6 text-center">Round of 16</h3>
+                <div className="flex flex-col flex-1 justify-around gap-4">
+                  {Array.from({length: 4}).map((_, i) => (
+                    <div key={i} className="flex flex-col gap-4">
+                      {renderMatchCard(r16Matches[i*2], `Round of 16 - Match ${i*2+1}`, 'TBD', 'TBD')}
+                      {renderMatchCard(r16Matches[i*2+1], `Round of 16 - Match ${i*2+2}`, 'TBD', 'TBD')}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {hasQf && (
-              <div className={`space-y-4 w-72 ${hasR16 ? 'pt-24' : ''} ${!showQfMobile ? 'hidden md:block' : ''}`}>
-                <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Quarter-Finals</h3>
-                {qfMatches.map((m, i) => (
-                   <div key={i} className="mb-24">{renderMatchCard(m, `Quarter-Final ${i+1}`, 'TBD', 'TBD')}</div>
-                ))}
+              <div className={`w-72 flex flex-col ${!showQfMobile ? 'hidden md:flex' : 'flex'}`}>
+                <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-6 text-center">Quarter-Finals</h3>
+                <div className="flex flex-col flex-1 justify-around gap-4">
+                  {Array.from({length: 2}).map((_, i) => (
+                    <div key={i} className="flex flex-col gap-4">
+                      {renderMatchCard(qfMatches[i*2], `Quarter-Final ${i*2+1}`, 'TBD', 'TBD')}
+                      {renderMatchCard(qfMatches[i*2+1], `Quarter-Final ${i*2+2}`, 'TBD', 'TBD')}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-            <div className={`space-y-4 w-72 ${hasQf ? 'pt-48' : ''} ${!showSfMobile ? 'hidden md:block' : ''}`}>
-              <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Semi-Finals</h3>
-              <div className="mb-48">{renderMatchCard(sf1, 'Semi-Final 1', 'TBD', 'TBD')}</div>
-              <div>{renderMatchCard(sf2, 'Semi-Final 2', 'TBD', 'TBD')}</div>
+            <div className={`w-72 flex flex-col ${!showSfMobile ? 'hidden md:flex' : 'flex'}`}>
+              <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-6 text-center">Semi-Finals</h3>
+              <div className="flex flex-col flex-1 justify-around gap-4">
+                <div className="flex flex-col gap-4">
+                  {renderMatchCard(sf1, 'Semi-Final 1', 'TBD', 'TBD')}
+                  {renderMatchCard(sf2, 'Semi-Final 2', 'TBD', 'TBD')}
+                </div>
+              </div>
             </div>
-            <div className={`space-y-4 w-72 ${hasQf ? 'pt-48' : ''} ${!showFinalsMobile ? 'hidden md:block' : ''}`}>
-              <h3 className="text-amber-400 font-bold uppercase text-xs tracking-widest mb-4">Finals</h3>
-              <div>
-                {renderMatchCard(finalMatch, 'Grand Final', 'TBD', 'TBD')}
+            <div className={`w-72 flex flex-col ${!showFinalsMobile ? 'hidden md:flex' : 'flex'}`}>
+              <h3 className="text-amber-400 font-bold uppercase text-xs tracking-widest mb-6 text-center">Finals</h3>
+              <div className="flex flex-col flex-1 justify-around gap-4">
+                <div className="flex flex-col gap-4">
+                  {renderMatchCard(finalMatch, 'Grand Final', 'TBD', 'TBD')}
+                </div>
               </div>
             </div>
           </div>
