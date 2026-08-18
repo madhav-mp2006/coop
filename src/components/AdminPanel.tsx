@@ -17,6 +17,7 @@ interface AdminPanelProps {
   onDeleteTeam: (teamId: string) => Promise<void>;
   onUpdateScore: (matchId: string, homeScore: number, awayScore: number) => Promise<void>;
   onResetMatchScore?: (matchId: string) => Promise<void>;
+  onRevertToGroupStage?: (leagueId: string) => Promise<void>;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -33,7 +34,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onDeleteLeague,
   onDeleteTeam,
   onUpdateScore,
-  onResetMatchScore
+  onResetMatchScore,
+  onRevertToGroupStage
 }) => {
   const [leagueName, setLeagueName] = useState('');
   const [tournamentType, setTournamentType] = useState<'round_robin' | 'world_cup'>('round_robin');
@@ -209,6 +211,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto self-stretch sm:self-auto justify-end">
+                      {isActive && l.status === 'knockout' && onRevertToGroupStage && (
+                        <button
+                          onClick={() => onRevertToGroupStage(l.id)}
+                          className="px-3.5 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 hover:text-yellow-300 rounded-lg text-xs font-semibold border border-yellow-500/20 transition-colors"
+                        >
+                          Revert to Group Stage
+                        </button>
+                      )}
                       {!isActive && (
                         <button
                           onClick={() => onSelectActiveLeague(l.id)}

@@ -22,7 +22,8 @@ import {
   getDatabaseMode,
   toggleDatabaseMode,
   isFirebaseConfigured,
-  resetMatchScore
+  resetMatchScore,
+  revertToGroupStage
 } from './services/firebase';
 import type { AppUser, LeagueSettings, Team, Match } from './services/firebase';
 import { generateRoundRobinFixtures, generateWorldCupGroupFixtures, calculateStandings, calculateGroupStandings } from './services/db';
@@ -405,6 +406,14 @@ function App() {
       await resetMatchScore(activeLeagueId, matchId);
     } catch (err: any) {
       alert(err.message || 'Failed to reset match score.');
+    }
+  };
+
+  const handleRevertToGroupStage = async (leagueId: string) => {
+    try {
+      await revertToGroupStage(leagueId);
+    } catch (err: any) {
+      alert(err.message || 'Failed to revert tournament stage.');
     }
   };
 
@@ -1298,6 +1307,7 @@ function App() {
             onDeleteTeam={deleteTeam}
             onUpdateScore={handleUpdateScore}
             onResetMatchScore={handleResetMatchScore}
+            onRevertToGroupStage={handleRevertToGroupStage}
           />
         )}
 

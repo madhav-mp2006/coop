@@ -567,6 +567,13 @@ export const saveFixtures = async (leagueId: string, fixtures: Match[]) => {
   );
 };
 
+export const revertToGroupStage = async (leagueId: string) => {
+  const fixtures = await getFixtures(leagueId);
+  const groupMatches = fixtures.filter(m => typeof m.round === 'number');
+  await saveFixtures(leagueId, groupMatches);
+  await saveLeagueSettings(leagueId, { status: 'active' });
+};
+
 export const updateMatchScore = async (
   leagueId: string,
   matchId: string, 
